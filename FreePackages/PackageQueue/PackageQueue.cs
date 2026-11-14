@@ -85,7 +85,7 @@ namespace FreePackages {
 			if (package.Type is EPackageType.App or EPackageType.Sub or EPackageType.Playtest) {
 				// A disabled switch pauses the queue without discarding candidates. Re-enabling
 				// both switches will still require fresh evidence at this final gate.
-				if (package.Type == EPackageType.Playtest || !BotCache.HasCurrentFreeToKeepEvidence(package)) {
+				if (package.Type == EPackageType.Playtest || !BotCache.HasCurrentClaimEvidence(package)) {
 					Bot.ArchiLogger.LogGenericInfo($"FarmWatch rejected activation for {package.Type}/{package.ID}: verified Free-to-Keep evidence missing or stale.");
 					BotCache.RemovePackage(package);
 					UpdateTimer(DateTime.Now.AddSeconds(1));
