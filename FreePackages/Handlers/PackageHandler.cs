@@ -15,6 +15,7 @@ namespace FreePackages {
 		internal readonly Bot Bot;
 		internal readonly BotCache BotCache;
 		internal readonly PackageFilter PackageFilter;
+		internal readonly bool FarmWatchEnabled;
 		private readonly ActivationQueue ActivationQueue;
 		private readonly RemovalQueue RemovalQueue;
 		private CancellationTokenSource? RemovalCancellation;
@@ -25,11 +26,12 @@ namespace FreePackages {
 		private static SemaphoreSlim AddHandlerSemaphore = new SemaphoreSlim(1, 1);
 		private static SemaphoreSlim ProcessChangesSemaphore = new SemaphoreSlim(1, 1);
 
-		private PackageHandler(Bot bot, BotCache botCache, List<FilterConfig> filterConfigs, uint? packageLimit, bool pauseWhilePlaying, bool pauseWhileFarming) {
+		private PackageHandler(Bot bot, BotCache botCache, List<FilterConfig> filterConfigs, uint? packageLimit, bool pauseWhilePlaying, bool pauseWhileFarming, bool farmWatchEnabled) {
 			Bot = bot;
 			BotCache = botCache;
 			PackageFilter = new PackageFilter(botCache, filterConfigs);
-			ActivationQueue = new ActivationQueue(bot, botCache, pauseWhilePlaying, pauseWhileFarming, packageLimit, PackageFilter);
+			FarmWatchEnabled = farmWatchEnabled;
+			ActivationQueue = new ActivationQueue(bot, botCache, pauseWhilePlaying, pauseWhileFarming, packageLimit, PackageFilter, farmWatchEnabled);
 			RemovalQueue = new RemovalQueue(bot, botCache, pauseWhilePlaying, pauseWhileFarming);
 			UserDataRefreshTimer = new Timer(async e => await FetchUserData().ConfigureAwait(false), null, Timeout.Infinite, Timeout.Infinite);
 		}
@@ -40,7 +42,7 @@ namespace FreePackages {
 			UserDataRefreshTimer.Dispose();
 		}
 
-		internal static async Task AddHandler(Bot bot, List<FilterConfig> filterConfigs, uint? packageLimit, bool pauseWhilePlaying, bool pauseWhileFarming) {
+		internal static async Task AddHandler(Bot bot, List<FilterConfig> filterConfigs, uint? packageLimit, bool pauseWhilePlaying, bool pauseWhileFarming, bool farmWatchEnabled) {
 			if (Handlers.ContainsKey(bot.BotName)) {
 				Handlers[bot.BotName].Dispose();
 				Handlers.TryRemove(bot.BotName, out PackageHandler? _);
