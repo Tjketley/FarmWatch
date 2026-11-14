@@ -296,6 +296,33 @@ namespace FreePackages {
 			}
 
 			try {
+				// Only Steam's explicit freepromotion PICS flag can establish Free-to-Keep status.
+				// Require a single actual game app, not DLC, demos, betas, or permanently-free catalogue apps.
+				if (!package.FreePromotion || package.FreeWeekend || package.LicenseType != ELicenseType.SinglePurchase ||
+					package.BillingType != EBillingType.FreeOnDemand || package.PackageContents.Count != 1) {
+					return;
+				}
+
+				FilterableApp promotedApp = package.PackageContents[0];
+				if (promotedApp.Type != EAppType.Game || promotedApp.IsFreeApp || promotedApp.Type == EAppType.Demo || promotedApp.Type == EAppType.Beta) {
+					return;
+				}
+
+				DateTime? promotionEnd = package.ExpiryTime > 0
+					? DateTimeOffset.FromUnixTimeSeconds((long) package.ExpiryTime).UtcDateTime
+					: null;
+
+				BotCache.AddPromotionEvidence(new PromotionEvidence {
+					TargetType = EPackageType.Sub,
+					TargetID = package.ID,
+					Source = PromotionEvidence.TrustedSource,
+					SourceUrl = $"https://steamdb.info/sub/{package.ID}/",
+					ObservedAtUtc = DateTime.UtcNow,
+					PromotionEndsAtUtc = promotionEnd,
+					IsExplicitFreeToKeep = true,
+					PermanentLicenceConfirmed = true
+				});
+
 				if (!PackageFilter.IsRedeemablePackage(package)) {
 					return;
 				}
