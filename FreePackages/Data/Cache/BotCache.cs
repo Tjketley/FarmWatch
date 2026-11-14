@@ -117,7 +117,7 @@ namespace FreePackages {
 			return true;
 		}
 
-		internal bool HasCurrentFreeToKeepEvidence(Package package) {
+		internal bool HasCurrentClaimEvidence(Package package) {
 			if (package.Type is not (EPackageType.App or EPackageType.Sub)) {
 				return false;
 			}
