@@ -17,6 +17,8 @@ namespace FreePackages {
 		public string RepositoryName => "Tjketley/FarmWatch-2";
 		public Version Version => typeof(FreePackages).Assembly.GetName().Version ?? new Version("0");
 		internal static GlobalCache? GlobalCache;
+		// Global kill switch. Missing configuration is deliberately disabled.
+		internal static bool FarmWatchAutoClaimEnabled { get; private set; } = false;
 
 		public Task OnLoaded(CancellationToken cancellationToken = default) {
 			ASF.ArchiLogger.LogGenericInfo("Free Packages ASF Plugin by Citrinate");
@@ -29,6 +31,12 @@ namespace FreePackages {
 		}
 
 		public async Task OnASFInit(IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null, CancellationToken cancellationToken = default) {
+			FarmWatchAutoClaimEnabled = additionalConfigProperties != null &&
+				additionalConfigProperties.TryGetValue("FarmWatchAutoClaimEnabled", out JsonElement autoClaimSetting) &&
+				autoClaimSetting.ValueKind == JsonValueKind.True;
+
+			ASF.ArchiLogger.LogGenericInfo("FarmWatch auto-claim global switch : " + FarmWatchAutoClaimEnabled.ToString());
+
 			if (GlobalCache == null) {
 				GlobalCache = await GlobalCache.CreateOrLoad().ConfigureAwait(false);
 			}
