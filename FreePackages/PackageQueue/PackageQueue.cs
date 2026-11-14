@@ -74,8 +74,16 @@ namespace FreePackages {
 			// FarmWatch final authorization gate: this runs immediately before any Steam activation call.
 			// Missing, stale, or contradictory promotion evidence must never fall through to ASF.
 			if (package.Type is EPackageType.App or EPackageType.Sub or EPackageType.Playtest) {
-				if (!FreePackages.FarmWatchAutoClaimEnabled || !FarmWatchEnabledForBot || package.Type == EPackageType.Playtest || !BotCache.HasCurrentFreeToKeepEvidence(package)) {
-					Bot.ArchiLogger.LogGenericInfo($"FarmWatch blocked activation for {package.Type}/{package.ID}: auto-claim disabled or verified Free-to-Keep evidence missing/stale.");
+				// A disabled switch pauses the queue without discarding candidates. Re-enabling
+				// both switches will still require fresh evidence at this final gate.
+				if (!FreePackages.FarmWatchAutoClaimEnabled || !FarmWatchEnabledForBot) {
+					Bot.ArchiLogger.LogGenericDebug($"FarmWatch activation paused for {package.Type}/{package.ID}: global or per-bot auto-claim is disabled.");
+					UpdateTimer(DateTime.Now.AddMinutes(1));
+					return;
+				}
+
+				if (package.Type == EPackageType.Playtest || !BotCache.HasCurrentFreeToKeepEvidence(package)) {
+					Bot.ArchiLogger.LogGenericInfo($"FarmWatch rejected activation for {package.Type}/{package.ID}: verified Free-to-Keep evidence missing or stale.");
 					BotCache.RemovePackage(package);
 					UpdateTimer(DateTime.Now.AddSeconds(1));
 					return;
