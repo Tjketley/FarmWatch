@@ -82,6 +82,16 @@ public sealed class FarmWatchEvidenceTests {
 	}
 
 	[TestMethod]
+	public void OwnedGameFreeDlcFactoryProducesEvidenceAcceptedByFinalGate() {
+		BotCache cache = new();
+		PromotionEvidence evidence = PromotionEvidence.ForOwnedGameFreeDlc(54321, 12345, DateTime.UtcNow);
+
+		Assert.IsTrue(evidence.HasValidShape());
+		Assert.IsTrue(cache.AddPromotionEvidence(evidence));
+		Assert.IsTrue(cache.HasCurrentClaimEvidence(new Package(EPackageType.App, 54321)));
+	}
+
+	[TestMethod]
 	public void RejectsAppEvidenceWithoutOwnedGameDlcClassification() {
 		PromotionEvidence evidence = new() {
 			TargetType = EPackageType.App,
