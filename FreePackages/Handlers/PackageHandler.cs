@@ -291,7 +291,7 @@ namespace FreePackages {
 				// Only Steam's explicit freepromotion PICS flag can establish Free-to-Keep status.
 				// Require a single actual game app, not DLC, demos, betas, or permanently-free catalogue apps.
 				if (!package.FreePromotion || package.FreeWeekend || package.LicenseType != ELicenseType.SinglePurchase ||
-					package.BillingType != EBillingType.FreeOnDemand || package.PackageContents.Count != 1) {
+					package.BillingType != EBillingType.NoCost || package.PackageContents.Count != 1) {
 					return;
 				}
 
