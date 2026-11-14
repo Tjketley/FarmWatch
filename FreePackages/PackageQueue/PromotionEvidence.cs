@@ -2,7 +2,7 @@ using System;
 
 namespace FreePackages {
 	internal sealed class PromotionEvidence {
-		internal const string TrustedSource = "steamdb-free-promotions";
+		internal const string TrustedSource = "steam-pics-freepromotion";
 
 		public EPackageType TargetType { get; set; }
 		public uint TargetID { get; set; }
