@@ -120,4 +120,31 @@ public sealed class FarmWatchEvidenceTests {
 
 		Assert.IsFalse(evidence.HasValidShape());
 	}
+	[TestMethod]
+	public void RejectsStaleOwnedGameFreeDlcEvidenceAtFinalGate() {
+		BotCache cache = new();
+		PromotionEvidence evidence = PromotionEvidence.ForOwnedGameFreeDlc(54321, 12345, DateTime.UtcNow.AddMinutes(-6));
+
+		Assert.IsTrue(cache.AddPromotionEvidence(evidence));
+		Assert.IsFalse(cache.HasCurrentClaimEvidence(new Package(EPackageType.App, 54321)));
+	}
+
+	[TestMethod]
+	public void RejectsExpiredFreeToKeepEvidenceAtFinalGate() {
+		BotCache cache = new();
+		PromotionEvidence evidence = new() {
+			TargetType = EPackageType.Sub,
+			TargetID = 12345,
+			Source = PromotionEvidence.TrustedSource,
+			SourceUrl = "https://steamdb.info/sub/12345/",
+			ObservedAtUtc = DateTime.UtcNow,
+			PromotionEndsAtUtc = DateTime.UtcNow.AddMinutes(-1),
+			IsExplicitFreeToKeep = true,
+			PermanentLicenceConfirmed = true
+		};
+
+		Assert.IsTrue(cache.AddPromotionEvidence(evidence));
+		Assert.IsFalse(cache.HasCurrentClaimEvidence(new Package(EPackageType.Sub, 12345)));
+	}
+
 }
