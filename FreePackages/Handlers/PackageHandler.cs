@@ -301,32 +301,9 @@ namespace FreePackages {
 			}
 
 			try {
-				// Only Steam's explicit freepromotion PICS flag can establish Free-to-Keep status.
-				// Require a single actual game app, not DLC, demos, betas, or permanently-free catalogue apps.
-				if (!package.FreePromotion) {
-					Bot.ArchiLogger.LogGenericDebug($"FarmWatch rejected sub/{package.ID}: Steam FreePromotion flag is false.");
-					return;
-				}
-				if (package.FreeWeekend) {
-					Bot.ArchiLogger.LogGenericDebug($"FarmWatch rejected sub/{package.ID}: FreeWeekend flag is true.");
-					return;
-				}
-				if (package.LicenseType != ELicenseType.SinglePurchase) {
-					Bot.ArchiLogger.LogGenericDebug($"FarmWatch rejected sub/{package.ID}: licence type is {package.LicenseType}, not SinglePurchase.");
-					return;
-				}
-				if (package.BillingType != EBillingType.NoCost) {
-					Bot.ArchiLogger.LogGenericDebug($"FarmWatch rejected sub/{package.ID}: billing type is {package.BillingType}, not NoCost.");
-					return;
-				}
-				if (package.PackageContents.Count != 1) {
-					Bot.ArchiLogger.LogGenericDebug($"FarmWatch rejected sub/{package.ID}: expected exactly one app, found {package.PackageContents.Count}.");
-					return;
-				}
-
-				FilterableApp promotedApp = package.PackageContents[0];
-				if (promotedApp.Type != EAppType.Game || promotedApp.IsFreeApp) {
-					Bot.ArchiLogger.LogGenericDebug($"FarmWatch rejected sub/{package.ID}: content app/{promotedApp.ID} type={promotedApp.Type}, isFreeApp={promotedApp.IsFreeApp}; expected a paid Game app.");
+				// Keep discovery and synthetic tests on the exact same eligibility policy.
+				if (!FarmWatchEligibilityPolicy.IsFreeToKeepPackage(package)) {
+					Bot.ArchiLogger.LogGenericDebug($"FarmWatch rejected sub/{package.ID}: package metadata did not meet the strict Free-to-Keep eligibility policy.");
 					return;
 				}
 
