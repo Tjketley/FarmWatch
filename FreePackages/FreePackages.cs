@@ -12,7 +12,7 @@ using ArchiSteamFarm.Helpers.Json;
 
 namespace FreePackages {
 	[Export(typeof(IPlugin))]
-	public sealed class FreePackages : IASF, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand, IGitHubPluginUpdates {
+	public sealed class FreePackages : IASF, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand2, IGitHubPluginUpdates {
 		public string Name => nameof(FreePackages);
 		public string RepositoryName => "Tjketley/FarmWatch-2";
 		public Version Version => typeof(FreePackages).Assembly.GetName().Version ?? new Version("0");
@@ -20,17 +20,17 @@ namespace FreePackages {
 		// Global kill switch. Missing configuration is deliberately disabled.
 		internal static bool FarmWatchAutoClaimEnabled { get; private set; } = false;
 
-		public Task OnLoaded(CancellationToken cancellationToken = default) {
+		public Task OnLoaded() {
 			ASF.ArchiLogger.LogGenericInfo("Free Packages ASF Plugin by Citrinate");
 
 			return Task.CompletedTask;
 		}
 
-		public async Task<string?> OnBotCommand(Bot bot, EBotUserAccess access, string message, string[] args, ulong steamID = 0, CancellationToken cancellationToken = default) {
+		public async Task<string?> OnBotCommand(Bot bot, EAccess access, string message, string[] args, ulong steamID = 0) {
 			return await Commands.Response(bot, access, steamID, message, args).ConfigureAwait(false);
 		}
 
-		public async Task OnASFInit(IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null, CancellationToken cancellationToken = default) {
+		public async Task OnASFInit(IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null) {
 			FarmWatchAutoClaimEnabled = additionalConfigProperties != null &&
 				additionalConfigProperties.TryGetValue("FarmWatchAutoClaimEnabled", out JsonElement autoClaimSetting) &&
 				autoClaimSetting.ValueKind == JsonValueKind.True;
@@ -45,7 +45,7 @@ namespace FreePackages {
 			ASFInfo.Update();
 		}
 
-		public async Task OnBotInitModules(Bot bot, IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null, CancellationToken cancellationToken = default) {
+		public async Task OnBotInitModules(Bot bot, IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null) {
 			if (additionalConfigProperties == null) {
 				return;
 			}
@@ -114,27 +114,27 @@ namespace FreePackages {
 			}
 		}
 
-		public Task<uint> GetPreferredChangeNumberToStartFrom(CancellationToken cancellationToken = default) {
+		public Task<uint> GetPreferredChangeNumberToStartFrom() {
 			return Task.FromResult(GlobalCache?.LastChangeNumber ?? 0);
 		}
 
-		public Task OnPICSChanges(uint currentChangeNumber, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> appChanges, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> packageChanges, CancellationToken cancellationToken = default) {
+		public Task OnPICSChanges(uint currentChangeNumber, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> appChanges, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> packageChanges) {
 			PICSHandler.OnPICSChanges(currentChangeNumber, appChanges, packageChanges);
 			
 			return Task.CompletedTask;
 		}
 
-		public async Task OnPICSChangesRestart(uint currentChangeNumber, CancellationToken cancellationToken = default) {
+		public async Task OnPICSChangesRestart(uint currentChangeNumber) {
 			await PICSHandler.OnPICSRestart(currentChangeNumber).ConfigureAwait(false);
 		}
 
-		public Task OnBotSteamCallbacksInit(Bot bot, CallbackManager callbackManager, CancellationToken cancellationToken = default) {
+		public Task OnBotSteamCallbacksInit(Bot bot, CallbackManager callbackManager) {
 			callbackManager.Subscribe<SteamApps.LicenseListCallback>(callback => OnLicenseList(bot, callback));
 
 			return Task.CompletedTask;
 		}
 
-		public Task<IReadOnlyCollection<ClientMsgHandler>?> OnBotSteamHandlersInit(Bot bot, CancellationToken cancellationToken = default) {
+		public Task<IReadOnlyCollection<ClientMsgHandler>?> OnBotSteamHandlersInit(Bot bot) {
 			return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>(new List<ClientMsgHandler> { SteamHandler.AddHandler(bot) });
 		}
 
@@ -142,11 +142,11 @@ namespace FreePackages {
 			PackageHandler.OnLicenseList(bot, callback);
 		}
 
-		public async Task OnBotLoggedOn(Bot bot, CancellationToken cancellationToken = default) {
+		public async Task OnBotLoggedOn(Bot bot) {
 			await PackageHandler.OnBotLoggedOn(bot).ConfigureAwait(false);
 		}
 
-		public Task OnBotDisconnected(Bot bot, EResult reason, CancellationToken cancellationToken = default) {
+		public Task OnBotDisconnected(Bot bot, EResult reason) {
 			return Task.FromResult(0);
 		}
 	}
