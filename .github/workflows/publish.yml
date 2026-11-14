@@ -1,4 +1,5 @@
 name: publish
+# Manual smoke-test entry point; push also runs this workflow.
 
 on:
   push:
