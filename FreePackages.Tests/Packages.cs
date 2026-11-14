@@ -81,6 +81,22 @@ public sealed class Packages : IDisposable {
 		Assert.IsTrue(package.IsFree());
     }
 
+
+    [TestMethod]
+    public void CanDetectExplicitFreeToKeepPromotion() {
+		KeyValue? kv = KeyValue.LoadAsText("package_freepromotion.txt");
+
+		if (kv == null) {
+			throw new InvalidOperationException(nameof(kv));
+		}
+
+		FilterablePackage package = new(kv);
+
+		Assert.IsTrue(package.FreePromotion);
+		Assert.IsFalse(package.FreeWeekend);
+		Assert.AreEqual(ELicenseType.SinglePurchase, package.LicenseType);
+    }
+
     [TestMethod]
     public void CanDetectPackageDemoState() {
 	    KeyValue? kv = KeyValue.LoadAsText("package_with_deactivated_demo.txt");
