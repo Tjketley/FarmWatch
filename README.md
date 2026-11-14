@@ -18,6 +18,8 @@ To permit an activation, all of the following must be true:
 
 Missing settings are fail-closed: observe-only defaults to **true**, and both auto-claim switches default to **false**. Playtests and direct AppID activations are never eligible for this Free-to-Keep path. The final gate also rejects missing, stale, malformed, or mismatched evidence.
 
+FarmWatch also has a separate owned-game free-DLC path: it only queues an app when Steam PICS identifies it as a free DLC app, its parent app ID is present and already owned by the bot account, and the app passes ASF's redeemability/country checks. The app metadata and parent ownership are rechecked immediately before activation. This path does not relax the base-game Free-to-Keep package rules; demos, playtests, F2P catalogue apps, paid DLC, and DLC without a verified owned parent remain ineligible.
+
 The discovery adapter uses Steam PICS' explicit `extended.freepromotion` flag together with NoCost billing, SinglePurchase licensing, a single available non-F2P game, and current package availability. The package is fetched again immediately before activation; a candidate that no longer meets every check is rejected.
 
 **Validation status:** the current work is still under development. Observe-only behaviour and policy tests are being added; real-world promotion fixtures and end-to-end tests are still required. Do not enable auto-claim or deploy this branch to a live ASF installation yet.
