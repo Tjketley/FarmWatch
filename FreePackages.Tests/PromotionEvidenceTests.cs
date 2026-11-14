@@ -45,6 +45,21 @@ public sealed class PromotionEvidenceTests {
 	}
 
 	[TestMethod]
+	public void RejectsUntrustedEvidenceUrl() {
+		BotCache cache = new();
+		PromotionEvidence evidence = CreateEvidence(DateTime.UtcNow);
+		evidence.SourceUrl = "https://steamdb.example/sub/12345/";
+		Assert.IsFalse(cache.AddPromotionEvidence(evidence));
+	}
+
+	[TestMethod]
+	public void RejectsEvidenceWithFutureTimestamp() {
+		BotCache cache = new();
+		PromotionEvidence evidence = CreateEvidence(DateTime.UtcNow.AddMinutes(1));
+		Assert.IsFalse(cache.AddPromotionEvidence(evidence));
+	}
+
+	[TestMethod]
 	public void RejectsEvidenceForAppQueueEntry() {
 		BotCache cache = new();
 		cache.PromotionEvidence.Add(CreateEvidence(DateTime.UtcNow));
