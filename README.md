@@ -6,7 +6,7 @@ This fork retains the upstream FreePackages implementation and Apache-2.0 attrib
 
 ## Auto-claim safety status
 
-Automatic activation is protected by a global kill switch named `FarmWatchAutoClaimEnabled`. It is **disabled unless explicitly set to true** in ASF's global plugin configuration. The activation queue also performs a final fail-closed check immediately before calling Steam.
+Automatic activation requires two independent switches, both named `FarmWatchAutoClaimEnabled`: the global ASF plugin setting and the individual bot setting. Both are **disabled unless explicitly set to true**. Either switch being false blocks activation. The activation queue also performs a final fail-closed check immediately before calling Steam.
 
 The final check requires all of the following:
 
