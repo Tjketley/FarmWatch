@@ -46,6 +46,10 @@ namespace FreePackages {
 		internal ConcurrentHashSet<uint> IgnoredApps { get; private set; } = new();
 
 		[JsonInclude]
+		[JsonDisallowNull]
+		internal List<PromotionEvidence> PromotionEvidence { get; private set; } = new();
+
+		[JsonInclude]
 		internal uint LastASFInfoItemCount { get; private set; }
 
 		private HashSet<uint> SeenPackageIDActivations = new();
@@ -100,6 +104,28 @@ namespace FreePackages {
 			botCache.FilePath = filePath;
 			
 			return botCache;
+		}
+
+		internal bool HasCurrentFreeToKeepEvidence(Package package) {
+			if (package.Type is not (EPackageType.App or EPackageType.Sub)) {
+				return false;
+			}
+
+			uint targetID = package.ID;
+			DateTime now = DateTime.UtcNow;
+			return PromotionEvidence.Any(evidence =>
+				evidence.TargetType == package.Type &&
+				evidence.TargetID == targetID &&
+				evidence.IsExplicitFreeToKeep &&
+				evidence.PermanentLicenceConfirmed &&
+				evidence.Source == PromotionEvidence.TrustedSource &&
+				evidence.ObservedAtUtc <= now &&
+				now - evidence.ObservedAtUtc <= TimeSpan.FromMinutes(30) &&
+				(evidence.PromotionEndsAtUtc == null || evidence.PromotionEndsAtUtc > now) &&
+				Uri.TryCreate(evidence.SourceUrl, UriKind.Absolute, out Uri? sourceUri) &&
+				sourceUri.Scheme == Uri.UriSchemeHttps &&
+				sourceUri.Host.Equals("steamdb.info", StringComparison.OrdinalIgnoreCase)
+			);
 		}
 
 		internal bool AddPackage(Package package) {
