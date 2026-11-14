@@ -1,0 +1,28 @@
+"1825454"
+{
+	"packageid" "1825454"
+	"billingtype" "0"
+	"licensetype" "1"
+	"status" "0"
+	"extended"
+	{
+		"basepackage" "1064144"
+		"disabletradingcards" "1"
+		"dontgrantifappidowned" "2990600"
+		"expirytime" "1791824400"
+		"freepromotion" "1"
+		"starttime" "1791565200"
+	}
+	"appids"
+	{
+		"0" "2990600"
+	}
+	"depotids"
+	{
+		"0" "2990601"
+		"1" "2990602"
+	}
+	"AppItems"
+	{
+	}
+}
