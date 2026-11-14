@@ -116,6 +116,46 @@ namespace FreePackages {
 				return DateTime.Now.AddSeconds(1);
 			}
 
+			// Free DLC uses a separate AppID path, but must be re-verified against live PICS
+			// metadata and the owning account's current base-game ownership immediately before claim.
+			if (package.Type == EPackageType.App) {
+				List<SteamApps.PICSProductInfoCallback>? appProductInfos = await ProductInfo.GetProductInfo(appIDs: new HashSet<uint> { package.ID }).ConfigureAwait(false);
+				if (appProductInfos == null) {
+					Bot.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
+					return DateTime.Now.AddMinutes(1);
+				}
+
+				List<FilterableApp>? currentApps = await FilterableApp.GetFilterables(appProductInfos, onNonFreeApp: x => false).ConfigureAwait(false);
+				if (currentApps == null) {
+					Bot.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
+					return DateTime.Now.AddMinutes(1);
+				}
+
+				FilterableApp? currentApp = currentApps.FirstOrDefault(x => x.ID == package.ID);
+				PromotionEvidence? previousEvidence = BotCache.PromotionEvidence.FirstOrDefault(x => x.TargetType == EPackageType.App && x.TargetID == package.ID && x.IsOwnedGameFreeDlc);
+				bool verifiedDlc = currentApp != null && currentApp.Type == EAppType.DLC && currentApp.IsFreeApp &&
+					currentApp.ParentID is uint parentAppID && previousEvidence != null && previousEvidence.ParentAppID == parentAppID &&
+					PackageFilter.IsOwnedApp(parentAppID) && PackageFilter.IsRedeemableApp(currentApp);
+
+				if (!verifiedDlc) {
+					Bot.ArchiLogger.LogGenericInfo($"FarmWatch rejected app/{package.ID}: current metadata no longer confirms free DLC for an owned game.");
+					BotCache.RemovePackage(package);
+					return DateTime.Now.AddSeconds(1);
+				}
+
+				BotCache.AddPromotionEvidence(new PromotionEvidence {
+					TargetType = EPackageType.App,
+					TargetID = package.ID,
+					Source = PromotionEvidence.TrustedSource,
+					SourceUrl = $"https://steamdb.info/app/{package.ID}/",
+					ObservedAtUtc = DateTime.UtcNow,
+					IsExplicitFreeToKeep = true,
+					PermanentLicenceConfirmed = true,
+					IsOwnedGameFreeDlc = true,
+					ParentAppID = previousEvidence!.ParentAppID
+				});
+			}
+
 			// Refresh the Steam PICS package metadata immediately before the shared activation gate.
 			// This is independent of the older filter-hash scan above.
 			if (package.Type == EPackageType.Sub) {
