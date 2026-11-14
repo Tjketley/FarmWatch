@@ -131,14 +131,20 @@ namespace FreePackages {
 				}
 
 				FilterablePackage? current = currentPackages.FirstOrDefault(x => x.ID == package.ID);
+				ulong now = DateUtils.DateTimeToUnixTime(DateTime.UtcNow);
 				bool verified = current != null &&
 					current.FreePromotion &&
 					!current.FreeWeekend &&
 					current.BillingType == EBillingType.FreeOnDemand &&
 					current.LicenseType == ELicenseType.SinglePurchase &&
+					current.IsAvailable() &&
+					(current.StartTime == 0 || current.StartTime <= now) &&
+					current.IsAvailablePackageContents() &&
 					current.PackageContents.Count == 1 &&
 					current.PackageContents[0].Type == EAppType.Game &&
-					!current.PackageContents[0].IsFreeApp;
+					!current.PackageContents[0].IsFreeApp &&
+					PackageFilter.IsRedeemablePackage(current) &&
+					PackageFilter.IsWantedPackage(current);
 
 				if (!verified) {
 					Bot.ArchiLogger.LogGenericInfo($"FarmWatch rejected sub/{package.ID}: current Steam PICS metadata no longer confirms a single-game Free-to-Keep promotion.");
