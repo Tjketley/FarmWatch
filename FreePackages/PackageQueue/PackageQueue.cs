@@ -74,7 +74,7 @@ namespace FreePackages {
 			// Missing, stale, or contradictory promotion evidence must never fall through to ASF.
 			if (package.Type is EPackageType.App or EPackageType.Sub or EPackageType.Playtest) {
 				if (!FreePackages.FarmWatchAutoClaimEnabled || package.Type == EPackageType.Playtest || !BotCache.HasCurrentFreeToKeepEvidence(package)) {
-					Bot.ArchiLogger.LogGenericWarning($"FarmWatch blocked activation for {package.Type}/{package.ID}: auto-claim disabled or verified Free-to-Keep evidence missing/stale.");
+					Bot.ArchiLogger.LogGenericInfo($"FarmWatch blocked activation for {package.Type}/{package.ID}: auto-claim disabled or verified Free-to-Keep evidence missing/stale.");
 					BotCache.RemovePackage(package);
 					UpdateTimer(DateTime.Now.AddSeconds(1));
 					return;
