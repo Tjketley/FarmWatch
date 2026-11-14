@@ -66,7 +66,7 @@ namespace FreePackages {
 			FilePath = filePath;
 		}
 
-		protected override Task Save(CancellationToken cancellationToken = default) => Save(this, cancellationToken);
+		protected override Task Save() => Save(this);
 
 		internal static async Task<BotCache?> CreateOrLoad(string filePath) {
 			if (string.IsNullOrEmpty(filePath)) {
