@@ -20,28 +20,28 @@ public sealed class PromotionEvidenceTests {
 	public void AcceptsFreshMatchingEvidence() {
 		BotCache cache = new();
 		cache.PromotionEvidence.Add(CreateEvidence(DateTime.UtcNow));
-		Assert.IsTrue(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.Sub, 12345)));
+		Assert.IsTrue(cache.HasCurrentClaimEvidence(new Package(EPackageType.Sub, 12345)));
 	}
 
 	[TestMethod]
 	public void RejectsStaleEvidence() {
 		BotCache cache = new();
 		cache.PromotionEvidence.Add(CreateEvidence(DateTime.UtcNow.AddMinutes(-6)));
-		Assert.IsFalse(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.Sub, 12345)));
+		Assert.IsFalse(cache.HasCurrentClaimEvidence(new Package(EPackageType.Sub, 12345)));
 	}
 
 	[TestMethod]
 	public void RejectsExpiredPromotionEvidence() {
 		BotCache cache = new();
 		cache.PromotionEvidence.Add(CreateEvidence(DateTime.UtcNow, DateTime.UtcNow.AddSeconds(-1)));
-		Assert.IsFalse(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.Sub, 12345)));
+		Assert.IsFalse(cache.HasCurrentClaimEvidence(new Package(EPackageType.Sub, 12345)));
 	}
 
 	[TestMethod]
 	public void RejectsEvidenceForDifferentPackage() {
 		BotCache cache = new();
 		cache.PromotionEvidence.Add(CreateEvidence(DateTime.UtcNow));
-		Assert.IsFalse(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.Sub, 99999)));
+		Assert.IsFalse(cache.HasCurrentClaimEvidence(new Package(EPackageType.Sub, 99999)));
 	}
 
 	[TestMethod]
@@ -63,7 +63,7 @@ public sealed class PromotionEvidenceTests {
 	public void RejectsEvidenceForAppQueueEntry() {
 		BotCache cache = new();
 		cache.PromotionEvidence.Add(CreateEvidence(DateTime.UtcNow));
-		Assert.IsFalse(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.App, 12345)));
+		Assert.IsFalse(cache.HasCurrentClaimEvidence(new Package(EPackageType.App, 12345)));
 	}
 	[TestMethod]
 	public void RejectsMalformedPersistedEvidenceAtFinalGate() {
@@ -71,7 +71,7 @@ public sealed class PromotionEvidenceTests {
 		PromotionEvidence evidence = CreateEvidence(DateTime.UtcNow);
 		evidence.SourceUrl = "https://steamdb.info/sub/99999/?redirect=1";
 		cache.PromotionEvidence.Add(evidence);
-		Assert.IsFalse(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.Sub, 12345)));
+		Assert.IsFalse(cache.HasCurrentClaimEvidence(new Package(EPackageType.Sub, 12345)));
 	}
 
 	[TestMethod]
@@ -79,7 +79,7 @@ public sealed class PromotionEvidenceTests {
 		BotCache cache = new();
 		PromotionEvidence evidence = CreateEvidence(DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Local));
 		cache.PromotionEvidence.Add(evidence);
-		Assert.IsFalse(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.Sub, 12345)));
+		Assert.IsFalse(cache.HasCurrentClaimEvidence(new Package(EPackageType.Sub, 12345)));
 	}
 
 	[TestMethod]
@@ -88,15 +88,14 @@ public sealed class PromotionEvidenceTests {
 		cache.PromotionEvidence.Add(new PromotionEvidence {
 			TargetType = EPackageType.App,
 			TargetID = 54321,
-			Source = PromotionEvidence.TrustedSource,
+			Source = PromotionEvidence.TrustedDlcSource,
 			SourceUrl = "https://steamdb.info/app/54321/",
 			ObservedAtUtc = DateTime.UtcNow,
-			IsExplicitFreeToKeep = true,
-			PermanentLicenceConfirmed = true,
 			IsOwnedGameFreeDlc = true,
+			IsExplicitFreeDlc = true,
 			ParentAppID = 12345
 		});
-		Assert.IsTrue(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.App, 54321)));
+		Assert.IsTrue(cache.HasCurrentClaimEvidence(new Package(EPackageType.App, 54321)));
 	}
 
 	[TestMethod]
@@ -105,15 +104,14 @@ public sealed class PromotionEvidenceTests {
 		cache.PromotionEvidence.Add(new PromotionEvidence {
 			TargetType = EPackageType.App,
 			TargetID = 54321,
-			Source = PromotionEvidence.TrustedSource,
+			Source = PromotionEvidence.TrustedDlcSource,
 			SourceUrl = "https://steamdb.info/app/54321/",
 			ObservedAtUtc = DateTime.UtcNow,
-			IsExplicitFreeToKeep = true,
-			PermanentLicenceConfirmed = true,
 			IsOwnedGameFreeDlc = true,
+			IsExplicitFreeDlc = true,
 			ParentAppID = 12345
 		});
-		Assert.IsFalse(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.Sub, 54321)));
+		Assert.IsFalse(cache.HasCurrentClaimEvidence(new Package(EPackageType.Sub, 54321)));
 	}
 
 }
