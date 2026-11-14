@@ -133,9 +133,24 @@ namespace FreePackages {
 
 				FilterableApp? currentApp = currentApps.FirstOrDefault(x => x.ID == package.ID);
 				PromotionEvidence? previousEvidence = BotCache.PromotionEvidence.FirstOrDefault(x => x.TargetType == EPackageType.App && x.TargetID == package.ID && x.IsOwnedGameFreeDlc);
-				bool verifiedDlc = currentApp != null && currentApp.Type == EAppType.DLC && currentApp.IsFreeApp &&
+				bool verifiedDlc = false;
+				if (currentApp != null && currentApp.Type == EAppType.DLC && currentApp.IsFreeApp &&
 					currentApp.ParentID is uint parentAppID && previousEvidence != null && previousEvidence.ParentAppID == parentAppID &&
-					PackageFilter.IsOwnedApp(parentAppID) && PackageFilter.IsRedeemableApp(currentApp);
+					PackageFilter.IsOwnedApp(parentAppID) && PackageFilter.IsRedeemableApp(currentApp)) {
+					List<SteamApps.PICSProductInfoCallback>? parentProductInfos = await ProductInfo.GetProductInfo(appIDs: new HashSet<uint> { parentAppID }).ConfigureAwait(false);
+					if (parentProductInfos == null) {
+						Bot.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
+						return DateTime.Now.AddMinutes(1);
+					}
+
+					List<FilterableApp>? parentApps = await FilterableApp.GetFilterables(parentProductInfos, onNonFreeApp: x => false).ConfigureAwait(false);
+					if (parentApps == null) {
+						Bot.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
+						return DateTime.Now.AddMinutes(1);
+					}
+
+					verifiedDlc = parentApps.Any(parent => parent.ID == parentAppID && parent.Type == EAppType.Game);
+				}
 
 				if (!verifiedDlc) {
 					Bot.ArchiLogger.LogGenericInfo($"FarmWatch rejected app/{package.ID}: current metadata no longer confirms free DLC for an owned game.");
