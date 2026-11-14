@@ -8,13 +8,13 @@
 
 	<PropertyGroup>
 		<ApplicationIcon />
-		<Authors>Citrinate</Authors>
-		<Company>$(Authors)</Company>
+		<Authors>Thomas Ketley (based on Citrinate/FreePackages)</Authors>
+		<Company>FarmWatch</Company>
 		<Copyright>Copyright © $([System.DateTime]::UtcNow.Year) $(Company)</Copyright>
-		<Description>$(PluginName) description.</Description>
+		<Description>Strict Steam Free-to-Keep discovery and automatic licence activation for ArchiSteamFarm.</Description>
 		<PackageIcon />
 		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-		<PackageProjectUrl>https://github.com/$(Company)/$(PluginName)</PackageProjectUrl>
+		<PackageProjectUrl>https://github.com/Tjketley/FarmWatch-2</PackageProjectUrl>
 		<PackageReleaseNotes>$(PackageProjectUrl)/releases</PackageReleaseNotes>
 		<RepositoryUrl>$(PackageProjectUrl).git</RepositoryUrl>
 	</PropertyGroup>
