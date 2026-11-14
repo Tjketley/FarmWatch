@@ -265,7 +265,7 @@ namespace FreePackages {
 		}
 
 		private void HandleFreeApp(FilterableApp app) {
-			if (!BotCache.ChangedApps.Contains(app.ID)) {
+			if (!BotCache.ChangedApps.Contains(app.ID) || !PackageFilter.Ready) {
 				return;
 			}
 
@@ -273,20 +273,12 @@ namespace FreePackages {
 				// Separate safe path for genuinely free DLC attached to a game already owned by this account.
 				if (app.Type == EAppType.DLC && app.IsFreeApp && app.ParentID is uint parentAppID &&
 					PackageFilter.IsOwnedApp(parentAppID) && PackageFilter.IsRedeemableApp(app)) {
-					BotCache.AddPromotionEvidence(new PromotionEvidence {
-						TargetType = EPackageType.App,
-						TargetID = app.ID,
-						Source = PromotionEvidence.TrustedSource,
-						SourceUrl = $"https://steamdb.info/app/{app.ID}/",
-						ObservedAtUtc = DateTime.UtcNow,
-						IsExplicitFreeToKeep = true,
-						PermanentLicenceConfirmed = true,
-						IsOwnedGameFreeDlc = true,
-						ParentAppID = parentAppID
-					});
-					if (BotCache.HasCurrentClaimEvidence(new Package(EPackageType.App, app.ID))) {
+					PromotionEvidence evidence = PromotionEvidence.ForOwnedGameFreeDlc(app.ID, parentAppID, DateTime.UtcNow);
+					if (BotCache.AddPromotionEvidence(evidence) && BotCache.HasCurrentClaimEvidence(new Package(EPackageType.App, app.ID))) {
 						BotCache.AddPackage(new Package(EPackageType.App, app.ID, filterHash: PackageFilter.Hash));
 						Bot.ArchiLogger.LogGenericInfo($"FarmWatch queued free DLC app/{app.ID} for owned game/{parentAppID}.");
+					} else {
+						Bot.ArchiLogger.LogGenericWarning($"FarmWatch did not queue app/{app.ID}: owned-game free-DLC evidence failed validation.");
 					}
 				} else {
 					Bot.ArchiLogger.LogGenericDebug($"FarmWatch skipped app/{app.ID}: not verified as free DLC for an owned game.");
@@ -322,7 +314,7 @@ namespace FreePackages {
 					? DateTimeOffset.FromUnixTimeSeconds((long) package.ExpiryTime).UtcDateTime
 					: null;
 
-				BotCache.AddPromotionEvidence(new PromotionEvidence {
+				PromotionEvidence evidence = new() {
 					TargetType = EPackageType.Sub,
 					TargetID = package.ID,
 					Source = PromotionEvidence.TrustedSource,
@@ -331,7 +323,11 @@ namespace FreePackages {
 					PromotionEndsAtUtc = promotionEnd,
 					IsExplicitFreeToKeep = true,
 					PermanentLicenceConfirmed = true
-				});
+				};
+				if (!BotCache.AddPromotionEvidence(evidence)) {
+					Bot.ArchiLogger.LogGenericWarning($"FarmWatch rejected sub/{package.ID}: Free-to-Keep evidence failed validation.");
+					return;
+				}
 
 				if (!PackageFilter.IsRedeemablePackage(package)) {
 					return;
