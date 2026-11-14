@@ -13,11 +13,13 @@ namespace FreePackages {
 		internal const uint MaxActivationsPerPeriod = 30; // Steam's imposed limit
 		internal const uint ActivationPeriodMinutes = 90; // Steam's imposed limit
 		internal readonly PackageFilter PackageFilter;
+		private readonly bool FarmWatchEnabled;
 		internal static readonly HashSet<EPackageType> ActivationTypes = [EPackageType.App, EPackageType.Sub, EPackageType.Playtest];
 		internal int ActivationsRemaining => BotCache.Packages.Where(x => ActivationTypes.Contains(x.Type)).Count();
 
-		internal ActivationQueue(Bot bot, BotCache botCache, bool pauseWhilePlaying, bool pauseWhileFarming, uint? packageLimit, PackageFilter packageFilter) : base(bot, botCache, pauseWhilePlaying, pauseWhileFarming) {
+		internal ActivationQueue(Bot bot, BotCache botCache, bool pauseWhilePlaying, bool pauseWhileFarming, uint? packageLimit, PackageFilter packageFilter, bool farmWatchEnabled) : base(bot, botCache, pauseWhilePlaying, pauseWhileFarming) {
 			PackageFilter = packageFilter;
+			FarmWatchEnabled = farmWatchEnabled;
 
 			if (packageLimit != null) {
 				ActivationsPerPeriod = Math.Min(packageLimit.Value, MaxActivationsPerPeriod);
