@@ -62,6 +62,14 @@ namespace FreePackages {
 				return;
 			}
 
+			// Avoid unnecessary Steam metadata requests while either FarmWatch switch is off.
+			// The independent final gate below still checks both switches immediately before activation.
+			if (package.Type is EPackageType.App or EPackageType.Sub or EPackageType.Playtest &&
+				(!FreePackages.FarmWatchAutoClaimEnabled || !FarmWatchEnabledForBot)) {
+				UpdateTimer(DateTime.Now.AddMinutes(1));
+				return;
+			}
+
 			{
 				DateTime? waitUntil = await BeforeProcessing(package).ConfigureAwait(false);
 				if (waitUntil != null) {
