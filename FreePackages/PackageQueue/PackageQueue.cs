@@ -62,9 +62,10 @@ namespace FreePackages {
 				return;
 			}
 
-			// Avoid unnecessary Steam metadata requests while either FarmWatch switch is off.
-			// The independent final gate below still checks both switches immediately before activation.
+			// In observe-only mode, continue through discovery and fresh metadata verification without claiming.
+			// Outside observe-only mode, both explicit auto-claim switches are required.
 			if ((package.Type is EPackageType.App or EPackageType.Sub or EPackageType.Playtest) &&
+				!FreePackages.FarmWatchObserveOnly &&
 				(!FreePackages.FarmWatchAutoClaimEnabled || !FarmWatchEnabledForBot)) {
 				UpdateTimer(DateTime.Now.AddMinutes(1));
 				return;
@@ -84,14 +85,18 @@ namespace FreePackages {
 			if (package.Type is EPackageType.App or EPackageType.Sub or EPackageType.Playtest) {
 				// A disabled switch pauses the queue without discarding candidates. Re-enabling
 				// both switches will still require fresh evidence at this final gate.
-				if (!FreePackages.FarmWatchAutoClaimEnabled || !FarmWatchEnabledForBot) {
-					Bot.ArchiLogger.LogGenericDebug($"FarmWatch activation paused for {package.Type}/{package.ID}: global or per-bot auto-claim is disabled.");
-					UpdateTimer(DateTime.Now.AddMinutes(1));
+				if (package.Type == EPackageType.Playtest || !BotCache.HasCurrentFreeToKeepEvidence(package)) {
+					Bot.ArchiLogger.LogGenericInfo($"FarmWatch rejected activation for {package.Type}/{package.ID}: verified Free-to-Keep evidence missing or stale.");
+					BotCache.RemovePackage(package);
+					UpdateTimer(DateTime.Now.AddSeconds(1));
 					return;
 				}
 
-				if (package.Type == EPackageType.Playtest || !BotCache.HasCurrentFreeToKeepEvidence(package)) {
-					Bot.ArchiLogger.LogGenericInfo($"FarmWatch rejected activation for {package.Type}/{package.ID}: verified Free-to-Keep evidence missing or stale.");
+				if (FarmWatchActivationPolicy.ShouldObserveOnly(
+					FreePackages.FarmWatchObserveOnly,
+					FreePackages.FarmWatchAutoClaimEnabled,
+					FarmWatchEnabledForBot)) {
+					Bot.ArchiLogger.LogGenericInfo($"FarmWatch observe-only: verified Free-to-Keep candidate sub/{package.ID}; no licence activation attempted.");
 					BotCache.RemovePackage(package);
 					UpdateTimer(DateTime.Now.AddSeconds(1));
 					return;
