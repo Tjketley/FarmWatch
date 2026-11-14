@@ -14,7 +14,7 @@ namespace FreePackages {
 	[Export(typeof(IPlugin))]
 	public sealed class FreePackages : IASF, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand, IGitHubPluginUpdates {
 		public string Name => nameof(FreePackages);
-		public string RepositoryName => "Citrinate/FreePackages";
+		public string RepositoryName => "Tjketley/FarmWatch-2";
 		public Version Version => typeof(FreePackages).Assembly.GetName().Version ?? new Version("0");
 		internal static GlobalCache? GlobalCache;
 
