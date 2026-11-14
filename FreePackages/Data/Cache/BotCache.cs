@@ -127,6 +127,7 @@ namespace FreePackages {
 				evidence.TargetType == package.Type &&
 				evidence.TargetID == package.ID &&
 				evidence.HasValidShape() &&
+				evidence.IsOwnedGameFreeDlc == (package.Type == EPackageType.App) &&
 				now - evidence.ObservedAtUtc <= TimeSpan.FromMinutes(5) &&
 				(evidence.PromotionEndsAtUtc == null || evidence.PromotionEndsAtUtc > now)
 			);
