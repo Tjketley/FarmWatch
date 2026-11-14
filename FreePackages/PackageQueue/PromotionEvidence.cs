@@ -17,6 +17,17 @@ namespace FreePackages {
 		public bool IsExplicitFreeDlc { get; set; }
 		public uint ParentAppID { get; set; }
 
+		internal static PromotionEvidence ForOwnedGameFreeDlc(uint appId, uint parentAppId, DateTime observedAtUtc) => new() {
+			TargetType = EPackageType.App,
+			TargetID = appId,
+			Source = TrustedDlcSource,
+			SourceUrl = $"https://steamdb.info/app/{appId}/",
+			ObservedAtUtc = observedAtUtc,
+			IsOwnedGameFreeDlc = true,
+			IsExplicitFreeDlc = true,
+			ParentAppID = parentAppId
+		};
+
 		public bool HasValidShape() {
 			if (TargetID == 0 || ObservedAtUtc.Kind != DateTimeKind.Utc || ObservedAtUtc > DateTime.UtcNow ||
 				!Uri.TryCreate(SourceUrl, UriKind.Absolute, out Uri? uri) ||
