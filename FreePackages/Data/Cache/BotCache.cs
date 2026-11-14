@@ -106,6 +106,17 @@ namespace FreePackages {
 			return botCache;
 		}
 
+		internal bool AddPromotionEvidence(PromotionEvidence evidence) {
+			if (evidence == null || !evidence.HasValidShape()) {
+				return false;
+			}
+
+			PromotionEvidence.RemoveAll(existing => existing.TargetType == evidence.TargetType && existing.TargetID == evidence.TargetID);
+			PromotionEvidence.Add(evidence);
+			Utilities.InBackground(() => Save());
+			return true;
+		}
+
 		internal bool HasCurrentFreeToKeepEvidence(Package package) {
 			if (package.Type is not (EPackageType.App or EPackageType.Sub)) {
 				return false;
