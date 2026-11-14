@@ -98,7 +98,8 @@ public sealed class Packages : IDisposable {
 		Assert.AreEqual(EBillingType.NoCost, package.BillingType);
 		Assert.AreEqual(ELicenseType.SinglePurchase, package.LicenseType);
 		Assert.AreEqual(EPackageStatus.Available, package.Status);
-		Assert.AreEqual<uint>(2990600, package.PackageContentIDs.Single());
+		Assert.AreEqual(1, package.PackageContentIDs.Count);
+		Assert.IsTrue(package.PackageContentIDs.Contains(2990600));
 		Assert.AreEqual<ulong>(1791565200, package.StartTime);
 		Assert.AreEqual<ulong>(1791824400, package.ExpiryTime);
 		Assert.IsFalse(package.IsAvailable(), "The real historical promotion has expired and must not be treated as currently claimable.");
