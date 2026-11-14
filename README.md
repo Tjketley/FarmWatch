@@ -6,24 +6,23 @@ This fork retains the upstream FreePackages implementation and Apache-2.0 attrib
 
 ## Auto-claim safety status
 
-Automatic activation requires two independent switches, both named `FarmWatchAutoClaimEnabled`: the global ASF plugin setting and the individual bot setting. Both are **disabled unless explicitly set to true**. Either switch being false blocks activation. The activation queue also performs a final fail-closed check immediately before calling Steam.
+FarmWatch starts in **observe-only mode**. In this mode it discovers candidates, refreshes Steam PICS package metadata, applies the strict Free-to-Keep checks, records short-lived evidence, and logs verified candidates without activating any licence.
 
-The final check requires all of the following:
+To permit an activation, all of the following must be true:
 
-- A matching app/package promotion evidence record.
-- Explicit Free-to-Keep classification.
-- Positive confirmation that the grant is a permanent licence.
-- Evidence attributed to the SteamDB free-promotions source and an HTTPS SteamDB page.
-- Evidence no older than 30 minutes and a promotion that has not expired.
-- Playtests are always blocked from this auto-claim path.
+- Global ASF setting `FarmWatchObserveOnly` is explicitly set to `false`.
+- Global ASF setting `FarmWatchAutoClaimEnabled` is explicitly set to `true`.
+- The individual bot setting `FarmWatchAutoClaimEnabled` is explicitly set to `true`.
+- The package passes the discovery checks and a fresh Steam PICS recheck immediately before activation.
+- Matching evidence is valid, unexpired, and no older than five minutes at the final gate.
 
-**Important:** the trusted promotion-evidence ingestion adapter is not yet implemented. Therefore this branch cannot currently authorize any automatic Free-to-Keep claims, even if the global switch is enabled. This is intentional fail-closed behaviour. Do not enable the global switch or deploy this branch until the ingestion adapter, PICS eligibility checks, persistence tests, and end-to-end activation tests are complete.
+Missing settings are fail-closed: observe-only defaults to **true**, and both auto-claim switches default to **false**. Playtests and direct AppID activations are never eligible for this Free-to-Keep path. The final gate also rejects missing, stale, malformed, or mismatched evidence.
 
-The existing upstream discovery and activation logic is retained for integration work, but its broad `NoCost` / `FreeOnDemand` classification is not treated as proof of a Free-to-Keep promotion. A free weekend, demo, playtest, DLC, trial, subscription, or temporary access grant must never be auto-claimed.
+The discovery adapter uses Steam PICS' explicit `extended.freepromotion` flag together with FreeOnDemand billing, SinglePurchase licensing, a single available non-F2P game, and current package availability. The package is fetched again immediately before activation; a candidate that no longer meets every check is rejected.
+
+**Validation status:** the current work is still under development. Observe-only behaviour and policy tests are being added; real-world promotion fixtures and end-to-end tests are still required. Do not enable auto-claim or deploy this branch to a live ASF installation yet.
 
 No Steam credentials, cookies, session identifiers, or account library details are sent to the FarmWatch website. Website integration will use aggregate statistics only.
-
----
 
 
 [![Check out my other ArchiSteamFarm plugins](https://img.shields.io/badge/Check%20out%20my%20other%20ArchiSteamFarm%20plugins-blue?logo=github)](https://github.com/stars/Citrinate/lists/archisteamfarm-plugins) [![Help with translations](https://img.shields.io/badge/Help%20with%20translations-purple?logo=crowdin)](/FreePackages/Localization/) ![GitHub all releases](https://img.shields.io/github/downloads/Citrinate/FreePackages/total?logo=github&label=Downloads)
