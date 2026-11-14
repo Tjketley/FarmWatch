@@ -26,6 +26,7 @@ namespace FreePackages {
 		internal List<string>? PurchaseRestrictedCountries;
 		internal bool AllowPurchaseFromRestrictedCountries;
 		internal bool FreeWeekend;
+		internal bool FreePromotion;
 		internal bool BetaTesterPackage;
 		
 		internal FilterablePackage(SteamApps.PICSProductInfoCallback.PICSProductInfo productInfo) : this(productInfo.ID, productInfo.KeyValues) {}
@@ -46,6 +47,7 @@ namespace FreePackages {
 			PurchaseRestrictedCountries = kv["extended"]["purchaserestrictedcountries"].AsString()?.ToUpper().Split(" ").ToList();
 			AllowPurchaseFromRestrictedCountries = kv["extended"]["allowpurchasefromrestrictedcountries"].AsBoolean();
 			FreeWeekend = kv["extended"]["freeweekend"].AsBoolean();
+			FreePromotion = kv["extended"]["freepromotion"].AsBoolean();
 			BetaTesterPackage = kv["extended"]["betatesterpackage"].AsBoolean();
 		}
 
