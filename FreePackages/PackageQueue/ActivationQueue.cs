@@ -112,6 +112,53 @@ namespace FreePackages {
 				return DateTime.Now.AddSeconds(1);
 			}
 
+			// Refresh the Steam PICS package metadata immediately before the shared activation gate.
+			// This is independent of the older filter-hash scan above.
+			if (package.Type == EPackageType.Sub) {
+				List<SteamApps.PICSProductInfoCallback>? currentProductInfos = await ProductInfo.GetProductInfo(packageIDs: new HashSet<uint> { package.ID }).ConfigureAwait(false);
+				if (currentProductInfos == null) {
+					Bot.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
+					return DateTime.Now.AddMinutes(1);
+				}
+
+				List<FilterablePackage>? currentPackages = await FilterablePackage.GetFilterables(currentProductInfos, onNonFreePackage: x => false).ConfigureAwait(false);
+				if (currentPackages == null) {
+					Bot.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
+					return DateTime.Now.AddMinutes(1);
+				}
+
+				FilterablePackage? current = currentPackages.FirstOrDefault(x => x.ID == package.ID);
+				bool verified = current != null &&
+					current.FreePromotion &&
+					!current.FreeWeekend &&
+					current.BillingType == EBillingType.FreeOnDemand &&
+					current.LicenseType == ELicenseType.SinglePurchase &&
+					current.PackageContents.Count == 1 &&
+					current.PackageContents[0].Type == EAppType.Game &&
+					!current.PackageContents[0].IsFreeApp;
+
+				if (!verified) {
+					Bot.ArchiLogger.LogGenericInfo($"FarmWatch rejected sub/{package.ID}: current Steam PICS metadata no longer confirms a single-game Free-to-Keep promotion.");
+					BotCache.RemovePackage(package);
+					return DateTime.Now.AddSeconds(1);
+				}
+
+				DateTime? promotionEnd = current!.ExpiryTime > 0
+					? DateTimeOffset.FromUnixTimeSeconds((long) current.ExpiryTime).UtcDateTime
+					: null;
+
+				BotCache.AddPromotionEvidence(new PromotionEvidence {
+					TargetType = EPackageType.Sub,
+					TargetID = current.ID,
+					Source = PromotionEvidence.TrustedSource,
+					SourceUrl = $"https://steamdb.info/sub/{current.ID}/",
+					ObservedAtUtc = DateTime.UtcNow,
+					PromotionEndsAtUtc = promotionEnd,
+					IsExplicitFreeToKeep = true,
+					PermanentLicenceConfirmed = true
+				});
+			}
+
 			return null;
 		}
 
