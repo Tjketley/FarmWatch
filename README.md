@@ -18,7 +18,7 @@ To permit an activation, all of the following must be true:
 
 Missing settings are fail-closed: observe-only defaults to **true**, and both auto-claim switches default to **false**. Playtests and direct AppID activations are never eligible for this Free-to-Keep path. The final gate also rejects missing, stale, malformed, or mismatched evidence.
 
-The discovery adapter uses Steam PICS' explicit `extended.freepromotion` flag together with FreeOnDemand billing, SinglePurchase licensing, a single available non-F2P game, and current package availability. The package is fetched again immediately before activation; a candidate that no longer meets every check is rejected.
+The discovery adapter uses Steam PICS' explicit `extended.freepromotion` flag together with NoCost billing, SinglePurchase licensing, a single available non-F2P game, and current package availability. The package is fetched again immediately before activation; a candidate that no longer meets every check is rejected.
 
 **Validation status:** the current work is still under development. Observe-only behaviour and policy tests are being added; real-world promotion fixtures and end-to-end tests are still required. Do not enable auto-claim or deploy this branch to a live ASF installation yet.
 
@@ -593,3 +593,10 @@ API | Method | Parameters | Description
 `/Api/FreePackages/{botName}/RequestFreeSubLicense`|`POST`|`subID`|Request a free license for given subID
 
 [^1]: Responses are not dependent on the account used to make these requests.  You may provide multiple `botNames`, and the first available bot will be used to make the request.
+
+
+### Real-world PICS fixture
+
+The test suite includes a sanitized Steam PICS package record for **Fireside Feelings**, SubID **1825454**, observed during its October 2026 Free-to-Keep promotion. The fixture records `billingtype=0` (`NoCost`), `licensetype=1` (`SinglePurchase`), `status=0` (`Available`), `extended.freepromotion=1`, one app ID (2990600), and the observed start/expiry timestamps. Public references: [SteamDB package record](https://steamdb.info/sub/1825454/info/) and [published PICS console dump](https://github.com/P-Adamiec/Free-Games-Claimer-Remaster/issues/84).
+
+A separate historical Free Weekend fixture (SubID 81948) has `billingtype=12` (`FreeOnDemand`) and `freeweekend=1`. This is intentionally rejected. These examples show why the billing type must not be treated as the positive Free-to-Keep signal by itself: FarmWatch requires the explicit `freepromotion=1` flag and the remaining package/app checks.
