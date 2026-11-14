@@ -65,4 +65,21 @@ public sealed class PromotionEvidenceTests {
 		cache.PromotionEvidence.Add(CreateEvidence(DateTime.UtcNow));
 		Assert.IsFalse(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.App, 12345)));
 	}
+	[TestMethod]
+	public void RejectsMalformedPersistedEvidenceAtFinalGate() {
+		BotCache cache = new();
+		PromotionEvidence evidence = CreateEvidence(DateTime.UtcNow);
+		evidence.SourceUrl = "https://steamdb.info/sub/99999/?redirect=1";
+		cache.PromotionEvidence.Add(evidence);
+		Assert.IsFalse(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.Sub, 12345)));
+	}
+
+	[TestMethod]
+	public void RejectsPersistedEvidenceWithNonUtcTimestampAtFinalGate() {
+		BotCache cache = new();
+		PromotionEvidence evidence = CreateEvidence(DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Local));
+		cache.PromotionEvidence.Add(evidence);
+		Assert.IsFalse(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.Sub, 12345)));
+	}
+
 }
