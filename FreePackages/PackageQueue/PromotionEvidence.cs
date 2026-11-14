@@ -17,7 +17,7 @@ namespace FreePackages {
 
 		public bool HasValidShape() =>
 			TargetID > 0 &&
-			TargetType == EPackageType.Sub &&
+			((TargetType == EPackageType.Sub && !IsOwnedGameFreeDlc && ParentAppID == 0) || (TargetType == EPackageType.App && IsOwnedGameFreeDlc && ParentAppID > 0)) &&
 			Source == TrustedSource &&
 			IsExplicitFreeToKeep &&
 			PermanentLicenceConfirmed &&
@@ -28,7 +28,7 @@ namespace FreePackages {
 			uri.Host.Equals("steamdb.info", StringComparison.OrdinalIgnoreCase) &&
 			uri.Port == 443 &&
 			string.IsNullOrEmpty(uri.UserInfo) &&
-			uri.AbsolutePath == $"/sub/{TargetID}/" &&
+			uri.AbsolutePath == (TargetType == EPackageType.Sub ? $"/sub/{TargetID}/" : $"/app/{TargetID}/") &&
 			string.IsNullOrEmpty(uri.Query) &&
 			string.IsNullOrEmpty(uri.Fragment);
 	}
