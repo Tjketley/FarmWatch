@@ -36,7 +36,7 @@ public sealed class FarmWatchEvidenceTests {
 	}
 
 	[TestMethod]
-	public void RejectsEvidenceWithoutPermanentLicenceConfirmation() {
+	public void RejectsAppIdOnlyEvidenceEvenWhenMarkedPermanent() {
 		PromotionEvidence evidence = new() {
 			TargetType = EPackageType.App,
 			TargetID = 12345,
@@ -44,7 +44,7 @@ public sealed class FarmWatchEvidenceTests {
 			SourceUrl = "https://steamdb.info/app/12345/",
 			ObservedAtUtc = DateTime.UtcNow,
 			IsExplicitFreeToKeep = true,
-			PermanentLicenceConfirmed = false
+			PermanentLicenceConfirmed = true
 		};
 
 		Assert.IsFalse(evidence.HasValidShape());
