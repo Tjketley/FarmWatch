@@ -66,7 +66,7 @@ namespace FreePackages {
 					botCache = new(cacheFilePath);
 				}
 
-				Handlers.TryAdd(bot.BotName, new PackageHandler(bot, botCache, filterConfigs, packageLimit, pauseWhilePlaying, pauseWhileFarming));
+				Handlers.TryAdd(bot.BotName, new PackageHandler(bot, botCache, filterConfigs, packageLimit, pauseWhilePlaying, pauseWhileFarming, farmWatchEnabled));
 			} finally {
 				AddHandlerSemaphore.Release();
 			}
