@@ -83,8 +83,8 @@ public sealed class Packages : IDisposable {
 
 
     [TestMethod]
-    public void CanDetectExplicitFreeToKeepPromotion() {
-		KeyValue? kv = KeyValue.LoadAsText("package_freepromotion.txt");
+    public void CanDetectRealFiresideFeelingsFreeToKeepPromotion() {
+		KeyValue? kv = KeyValue.LoadAsText("package_fireside_feelings_f2k_2026.txt");
 
 		if (kv == null) {
 			throw new InvalidOperationException(nameof(kv));
@@ -92,9 +92,45 @@ public sealed class Packages : IDisposable {
 
 		FilterablePackage package = new(kv);
 
+		Assert.AreEqual<uint>(1825454, package.ID);
 		Assert.IsTrue(package.FreePromotion);
 		Assert.IsFalse(package.FreeWeekend);
+		Assert.AreEqual(EBillingType.NoCost, package.BillingType);
 		Assert.AreEqual(ELicenseType.SinglePurchase, package.LicenseType);
+		Assert.AreEqual(EPackageStatus.Available, package.Status);
+		Assert.AreEqual<uint>(2990600, package.PackageContentIDs.Single());
+		Assert.AreEqual<ulong>(1791565200, package.StartTime);
+		Assert.AreEqual<ulong>(1791824400, package.ExpiryTime);
+    }
+
+    [TestMethod]
+    public void RejectsFreeWeekendPackageAsFreeToKeepEvidence() {
+		KeyValue? kv = KeyValue.LoadAsText("package_with_free_weekend.txt");
+
+		if (kv == null) {
+			throw new InvalidOperationException(nameof(kv));
+		}
+
+		FilterablePackage package = new(kv);
+
+		Assert.IsTrue(package.FreeWeekend);
+		Assert.IsFalse(package.FreePromotion);
+		Assert.AreEqual(EBillingType.FreeOnDemand, package.BillingType);
+		Assert.AreNotEqual(EBillingType.NoCost, package.BillingType);
+    }
+
+    [TestMethod]
+    public void NoCostPackageWithoutFreePromotionFlagIsNotFreeToKeep() {
+		KeyValue? kv = KeyValue.LoadAsText("package_which_is_no_cost.txt");
+
+		if (kv == null) {
+			throw new InvalidOperationException(nameof(kv));
+		}
+
+		FilterablePackage package = new(kv);
+
+		Assert.AreEqual(EBillingType.NoCost, package.BillingType);
+		Assert.IsFalse(package.FreePromotion);
     }
 
     [TestMethod]
