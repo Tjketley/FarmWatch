@@ -129,7 +129,7 @@ namespace FreePackages {
 				evidence.TargetID == targetID &&
 				evidence.IsExplicitFreeToKeep &&
 				evidence.PermanentLicenceConfirmed &&
-				evidence.Source == PromotionEvidence.TrustedSource &&
+				evidence.Source == global::FreePackages.PromotionEvidence.TrustedSource &&
 				evidence.ObservedAtUtc <= now &&
 				now - evidence.ObservedAtUtc <= TimeSpan.FromMinutes(5) &&
 				(evidence.PromotionEndsAtUtc == null || evidence.PromotionEndsAtUtc > now) &&
