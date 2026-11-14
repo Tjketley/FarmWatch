@@ -64,17 +64,17 @@ public sealed class FarmWatchEvidenceTests {
 
 		Assert.IsFalse(evidence.HasValidShape());
 	}
+
 	[TestMethod]
 	public void AcceptsFreeDlcEvidenceForOwnedGameShape() {
 		PromotionEvidence evidence = new() {
 			TargetType = EPackageType.App,
 			TargetID = 54321,
-			Source = PromotionEvidence.TrustedSource,
+			Source = PromotionEvidence.TrustedDlcSource,
 			SourceUrl = "https://steamdb.info/app/54321/",
 			ObservedAtUtc = DateTime.UtcNow,
-			IsExplicitFreeToKeep = true,
-			PermanentLicenceConfirmed = true,
 			IsOwnedGameFreeDlc = true,
+			IsExplicitFreeDlc = true,
 			ParentAppID = 12345
 		};
 
@@ -86,11 +86,11 @@ public sealed class FarmWatchEvidenceTests {
 		PromotionEvidence evidence = new() {
 			TargetType = EPackageType.App,
 			TargetID = 54321,
-			Source = PromotionEvidence.TrustedSource,
+			Source = PromotionEvidence.TrustedDlcSource,
 			SourceUrl = "https://steamdb.info/app/54321/",
 			ObservedAtUtc = DateTime.UtcNow,
-			IsExplicitFreeToKeep = true,
-			PermanentLicenceConfirmed = true
+			IsExplicitFreeDlc = true,
+			ParentAppID = 12345
 		};
 
 		Assert.IsFalse(evidence.HasValidShape());
@@ -101,15 +101,13 @@ public sealed class FarmWatchEvidenceTests {
 		PromotionEvidence evidence = new() {
 			TargetType = EPackageType.App,
 			TargetID = 54321,
-			Source = PromotionEvidence.TrustedSource,
+			Source = PromotionEvidence.TrustedDlcSource,
 			SourceUrl = "https://steamdb.info/app/54321/",
 			ObservedAtUtc = DateTime.UtcNow,
-			IsExplicitFreeToKeep = true,
-			PermanentLicenceConfirmed = true,
-			IsOwnedGameFreeDlc = true
+			IsOwnedGameFreeDlc = true,
+			IsExplicitFreeDlc = true
 		};
 
 		Assert.IsFalse(evidence.HasValidShape());
 	}
-
 }
