@@ -19,8 +19,15 @@ namespace FreePackages {
 			Source == TrustedSource &&
 			IsExplicitFreeToKeep &&
 			PermanentLicenceConfirmed &&
+			ObservedAtUtc.Kind == DateTimeKind.Utc &&
+			ObservedAtUtc <= DateTime.UtcNow &&
 			Uri.TryCreate(SourceUrl, UriKind.Absolute, out Uri? uri) &&
 			uri.Scheme == Uri.UriSchemeHttps &&
-			uri.Host.Equals("steamdb.info", StringComparison.OrdinalIgnoreCase);
+			uri.Host.Equals("steamdb.info", StringComparison.OrdinalIgnoreCase) &&
+			uri.Port == 443 &&
+			string.IsNullOrEmpty(uri.UserInfo) &&
+			uri.AbsolutePath == (TargetType == EPackageType.Sub ? $"/sub/{TargetID}/" : $"/app/{TargetID}/") &&
+			string.IsNullOrEmpty(uri.Query) &&
+			string.IsNullOrEmpty(uri.Fragment);
 	}
 }
