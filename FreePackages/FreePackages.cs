@@ -54,6 +54,7 @@ namespace FreePackages {
 			uint? packageLimit = null;
 			bool pauseWhilePlaying = false;
 			bool pauseWhileFarming = false;
+			bool farmWatchEnabled = false;
 			List<FilterConfig> filterConfigs = new();
 
 			foreach (KeyValuePair<string, JsonElement> configProperty in additionalConfigProperties) {
@@ -70,6 +71,12 @@ namespace FreePackages {
 						break;
 					}
 					
+					case "FarmWatchAutoClaimEnabled" when (configProperty.Value.ValueKind == JsonValueKind.True || configProperty.Value.ValueKind == JsonValueKind.False): {
+						farmWatchEnabled = configProperty.Value.GetBoolean();
+						bot.ArchiLogger.LogGenericInfo("FarmWatch auto-claim for this bot : " + farmWatchEnabled.ToString());
+						break;
+					}
+
 					case "PauseFreePackagesWhileFarming" when (configProperty.Value.ValueKind == JsonValueKind.True || configProperty.Value.ValueKind == JsonValueKind.False): {
 						pauseWhileFarming = configProperty.Value.GetBoolean();
 						bot.ArchiLogger.LogGenericInfo("Pause Free Packages While Farming : " + pauseWhileFarming.ToString());
@@ -103,7 +110,7 @@ namespace FreePackages {
 			}
 			
 			if (isEnabled) {
-				await PackageHandler.AddHandler(bot, filterConfigs, packageLimit, pauseWhilePlaying, pauseWhileFarming).ConfigureAwait(false);
+				await PackageHandler.AddHandler(bot, filterConfigs, packageLimit, pauseWhilePlaying, pauseWhileFarming, farmWatchEnabled).ConfigureAwait(false);
 			}
 		}
 
