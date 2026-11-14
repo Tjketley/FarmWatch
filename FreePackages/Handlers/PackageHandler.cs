@@ -284,7 +284,7 @@ namespace FreePackages {
 						IsOwnedGameFreeDlc = true,
 						ParentAppID = parentAppID
 					});
-					if (BotCache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.App, app.ID))) {
+					if (BotCache.HasCurrentClaimEvidence(new Package(EPackageType.App, app.ID))) {
 						BotCache.AddPackage(new Package(EPackageType.App, app.ID, filterHash: PackageFilter.Hash));
 						Bot.ArchiLogger.LogGenericInfo($"FarmWatch queued free DLC app/{app.ID} for owned game/{parentAppID}.");
 					}
