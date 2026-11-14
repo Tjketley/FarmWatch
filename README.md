@@ -1,5 +1,31 @@
 # Free Packages Plugin for ArchiSteamFarm
 
+# FarmWatch safety layer (fork)
+
+This fork retains the upstream FreePackages implementation and Apache-2.0 attribution, with a FarmWatch safety layer being developed on top.
+
+## Auto-claim safety status
+
+Automatic activation is protected by a global kill switch named `FarmWatchAutoClaimEnabled`. It is **disabled unless explicitly set to true** in ASF's global plugin configuration. The activation queue also performs a final fail-closed check immediately before calling Steam.
+
+The final check requires all of the following:
+
+- A matching app/package promotion evidence record.
+- Explicit Free-to-Keep classification.
+- Positive confirmation that the grant is a permanent licence.
+- Evidence attributed to the SteamDB free-promotions source and an HTTPS SteamDB page.
+- Evidence no older than 30 minutes and a promotion that has not expired.
+- Playtests are always blocked from this auto-claim path.
+
+**Important:** the trusted promotion-evidence ingestion adapter is not yet implemented. Therefore this branch cannot currently authorize any automatic Free-to-Keep claims, even if the global switch is enabled. This is intentional fail-closed behaviour. Do not enable the global switch or deploy this branch until the ingestion adapter, PICS eligibility checks, persistence tests, and end-to-end activation tests are complete.
+
+The existing upstream discovery and activation logic is retained for integration work, but its broad `NoCost` / `FreeOnDemand` classification is not treated as proof of a Free-to-Keep promotion. A free weekend, demo, playtest, DLC, trial, subscription, or temporary access grant must never be auto-claimed.
+
+No Steam credentials, cookies, session identifiers, or account library details are sent to the FarmWatch website. Website integration will use aggregate statistics only.
+
+---
+
+
 [![Check out my other ArchiSteamFarm plugins](https://img.shields.io/badge/Check%20out%20my%20other%20ArchiSteamFarm%20plugins-blue?logo=github)](https://github.com/stars/Citrinate/lists/archisteamfarm-plugins) [![Help with translations](https://img.shields.io/badge/Help%20with%20translations-purple?logo=crowdin)](/FreePackages/Localization/) ![GitHub all releases](https://img.shields.io/github/downloads/Citrinate/FreePackages/total?logo=github&label=Downloads)
 
 ## Introduction
