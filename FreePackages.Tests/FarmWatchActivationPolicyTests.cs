@@ -28,4 +28,44 @@ public sealed class FarmWatchActivationPolicyTests {
 	public void OnlyExplicitlyEnabledNonObserveModeCanActivate() {
 		Assert.IsFalse(FarmWatchActivationPolicy.ShouldObserveOnly(false, true, true));
 	}
+
+	[TestMethod]
+	public void FinalGateAllowsVerifiedFreeToKeepPackageWhenExplicitlyEnabled() {
+		Assert.IsTrue(FarmWatchActivationPolicy.ShouldActivate(false, true, true, EPackageType.Sub, true));
+	}
+
+	[TestMethod]
+	public void FinalGateAllowsVerifiedOwnedGameFreeDlcWhenExplicitlyEnabled() {
+		Assert.IsTrue(FarmWatchActivationPolicy.ShouldActivate(false, true, true, EPackageType.App, true));
+	}
+
+	[TestMethod]
+	public void FinalGateRejectsFreeToKeepWithoutCurrentEvidence() {
+		Assert.IsFalse(FarmWatchActivationPolicy.ShouldActivate(false, true, true, EPackageType.Sub, false));
+	}
+
+	[TestMethod]
+	public void FinalGateRejectsOwnedGameFreeDlcWithoutCurrentEvidence() {
+		Assert.IsFalse(FarmWatchActivationPolicy.ShouldActivate(false, true, true, EPackageType.App, false));
+	}
+
+	[TestMethod]
+	public void FinalGateRejectsPlaytestsEvenWithEvidenceAndAllSwitchesEnabled() {
+		Assert.IsFalse(FarmWatchActivationPolicy.ShouldActivate(false, true, true, EPackageType.Playtest, true));
+	}
+
+	[TestMethod]
+	public void FinalGateRejectsActivationInObserveOnlyMode() {
+		Assert.IsFalse(FarmWatchActivationPolicy.ShouldActivate(true, true, true, EPackageType.App, true));
+	}
+
+	[TestMethod]
+	public void FinalGateRejectsActivationWhenGlobalSwitchIsOff() {
+		Assert.IsFalse(FarmWatchActivationPolicy.ShouldActivate(false, false, true, EPackageType.Sub, true));
+	}
+
+	[TestMethod]
+	public void FinalGateRejectsActivationWhenBotSwitchIsOff() {
+		Assert.IsFalse(FarmWatchActivationPolicy.ShouldActivate(false, true, false, EPackageType.App, true));
+	}
 }
