@@ -7,7 +7,7 @@ namespace FreePackages {
 				return false;
 			}
 
-			if (package.LicenseType != SteamKit2.ELicenseType.SinglePurchase || package.BillingType != SteamKit2.EBillingType.NoCost) {
+			if (package.LicenseType != SteamKit2.ELicenseType.SinglePurchase || package.BillingType != EBillingType.NoCost) {
 				return false;
 			}
 
