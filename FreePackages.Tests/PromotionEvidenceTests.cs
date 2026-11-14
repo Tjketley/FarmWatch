@@ -82,4 +82,38 @@ public sealed class PromotionEvidenceTests {
 		Assert.IsFalse(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.Sub, 12345)));
 	}
 
+	[TestMethod]
+	public void AcceptsFreshOwnedGameFreeDlcEvidenceForAppQueueEntry() {
+		BotCache cache = new();
+		cache.PromotionEvidence.Add(new PromotionEvidence {
+			TargetType = EPackageType.App,
+			TargetID = 54321,
+			Source = PromotionEvidence.TrustedSource,
+			SourceUrl = "https://steamdb.info/app/54321/",
+			ObservedAtUtc = DateTime.UtcNow,
+			IsExplicitFreeToKeep = true,
+			PermanentLicenceConfirmed = true,
+			IsOwnedGameFreeDlc = true,
+			ParentAppID = 12345
+		});
+		Assert.IsTrue(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.App, 54321)));
+	}
+
+	[TestMethod]
+	public void RejectsOwnedGameFreeDlcEvidenceForSubQueueEntry() {
+		BotCache cache = new();
+		cache.PromotionEvidence.Add(new PromotionEvidence {
+			TargetType = EPackageType.App,
+			TargetID = 54321,
+			Source = PromotionEvidence.TrustedSource,
+			SourceUrl = "https://steamdb.info/app/54321/",
+			ObservedAtUtc = DateTime.UtcNow,
+			IsExplicitFreeToKeep = true,
+			PermanentLicenceConfirmed = true,
+			IsOwnedGameFreeDlc = true,
+			ParentAppID = 12345
+		});
+		Assert.IsFalse(cache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.Sub, 54321)));
+	}
+
 }
