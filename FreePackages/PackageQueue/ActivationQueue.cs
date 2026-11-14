@@ -158,17 +158,16 @@ namespace FreePackages {
 					return DateTime.Now.AddSeconds(1);
 				}
 
-				BotCache.AddPromotionEvidence(new PromotionEvidence {
-					TargetType = EPackageType.App,
-					TargetID = package.ID,
-					Source = PromotionEvidence.TrustedSource,
-					SourceUrl = $"https://steamdb.info/app/{package.ID}/",
-					ObservedAtUtc = DateTime.UtcNow,
-					IsExplicitFreeToKeep = true,
-					PermanentLicenceConfirmed = true,
-					IsOwnedGameFreeDlc = true,
-					ParentAppID = previousEvidence!.ParentAppID
-				});
+				PromotionEvidence refreshedDlcEvidence = PromotionEvidence.ForOwnedGameFreeDlc(
+					package.ID,
+					previousEvidence!.ParentAppID,
+					DateTime.UtcNow
+				);
+				if (!BotCache.AddPromotionEvidence(refreshedDlcEvidence)) {
+					Bot.ArchiLogger.LogGenericWarning($"FarmWatch rejected app/{package.ID}: refreshed owned-game free-DLC evidence failed validation.");
+					BotCache.RemovePackage(package);
+					return DateTime.Now.AddSeconds(1);
+				}
 			}
 
 			// Refresh the Steam PICS package metadata immediately before the shared activation gate.
@@ -212,7 +211,7 @@ namespace FreePackages {
 					? DateTimeOffset.FromUnixTimeSeconds((long) current.ExpiryTime).UtcDateTime
 					: null;
 
-				BotCache.AddPromotionEvidence(new PromotionEvidence {
+				PromotionEvidence refreshedFreeToKeepEvidence = new() {
 					TargetType = EPackageType.Sub,
 					TargetID = current.ID,
 					Source = PromotionEvidence.TrustedSource,
@@ -221,7 +220,12 @@ namespace FreePackages {
 					PromotionEndsAtUtc = promotionEnd,
 					IsExplicitFreeToKeep = true,
 					PermanentLicenceConfirmed = true
-				});
+				};
+				if (!BotCache.AddPromotionEvidence(refreshedFreeToKeepEvidence)) {
+					Bot.ArchiLogger.LogGenericWarning($"FarmWatch rejected sub/{package.ID}: refreshed Free-to-Keep evidence failed validation.");
+					BotCache.RemovePackage(package);
+					return DateTime.Now.AddSeconds(1);
+				}
 			}
 
 			return null;
