@@ -7,7 +7,7 @@
 	"extended"
 	{
 		"freepromotion" "1"
-		"expirytime" "1791824400"
+		"expirytime" "1800000000"
 	}
 	"appids"
 	{
