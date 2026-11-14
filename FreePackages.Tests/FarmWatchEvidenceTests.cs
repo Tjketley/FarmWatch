@@ -64,4 +64,52 @@ public sealed class FarmWatchEvidenceTests {
 
 		Assert.IsFalse(evidence.HasValidShape());
 	}
+	[TestMethod]
+	public void AcceptsFreeDlcEvidenceForOwnedGameShape() {
+		PromotionEvidence evidence = new() {
+			TargetType = EPackageType.App,
+			TargetID = 54321,
+			Source = PromotionEvidence.TrustedSource,
+			SourceUrl = "https://steamdb.info/app/54321/",
+			ObservedAtUtc = DateTime.UtcNow,
+			IsExplicitFreeToKeep = true,
+			PermanentLicenceConfirmed = true,
+			IsOwnedGameFreeDlc = true,
+			ParentAppID = 12345
+		};
+
+		Assert.IsTrue(evidence.HasValidShape());
+	}
+
+	[TestMethod]
+	public void RejectsAppEvidenceWithoutOwnedGameDlcClassification() {
+		PromotionEvidence evidence = new() {
+			TargetType = EPackageType.App,
+			TargetID = 54321,
+			Source = PromotionEvidence.TrustedSource,
+			SourceUrl = "https://steamdb.info/app/54321/",
+			ObservedAtUtc = DateTime.UtcNow,
+			IsExplicitFreeToKeep = true,
+			PermanentLicenceConfirmed = true
+		};
+
+		Assert.IsFalse(evidence.HasValidShape());
+	}
+
+	[TestMethod]
+	public void RejectsFreeDlcEvidenceWithoutParentGame() {
+		PromotionEvidence evidence = new() {
+			TargetType = EPackageType.App,
+			TargetID = 54321,
+			Source = PromotionEvidence.TrustedSource,
+			SourceUrl = "https://steamdb.info/app/54321/",
+			ObservedAtUtc = DateTime.UtcNow,
+			IsExplicitFreeToKeep = true,
+			PermanentLicenceConfirmed = true,
+			IsOwnedGameFreeDlc = true
+		};
+
+		Assert.IsFalse(evidence.HasValidShape());
+	}
+
 }
