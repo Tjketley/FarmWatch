@@ -131,7 +131,7 @@ namespace FreePackages {
 				evidence.PermanentLicenceConfirmed &&
 				evidence.Source == PromotionEvidence.TrustedSource &&
 				evidence.ObservedAtUtc <= now &&
-				now - evidence.ObservedAtUtc <= TimeSpan.FromMinutes(30) &&
+				now - evidence.ObservedAtUtc <= TimeSpan.FromMinutes(5) &&
 				(evidence.PromotionEndsAtUtc == null || evidence.PromotionEndsAtUtc > now) &&
 				Uri.TryCreate(evidence.SourceUrl, UriKind.Absolute, out Uri? sourceUri) &&
 				sourceUri.Scheme == Uri.UriSchemeHttps &&
