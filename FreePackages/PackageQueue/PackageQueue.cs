@@ -92,11 +92,13 @@ namespace FreePackages {
 					return;
 				}
 
-				if (FarmWatchActivationPolicy.ShouldObserveOnly(
+				if (!FarmWatchActivationPolicy.ShouldActivate(
 					FreePackages.FarmWatchObserveOnly,
 					FreePackages.FarmWatchAutoClaimEnabled,
-					FarmWatchEnabledForBot)) {
-					Bot.ArchiLogger.LogGenericInfo($"FarmWatch observe-only: verified Free-to-Keep candidate sub/{package.ID}; no licence activation attempted.");
+					FarmWatchEnabledForBot,
+					package.Type,
+					BotCache.HasCurrentClaimEvidence(package))) {
+					Bot.ArchiLogger.LogGenericInfo($"FarmWatch observe-only: verified claim candidate {package.Type}/{package.ID}; no licence activation attempted.");
 					BotCache.RemovePackage(package);
 					UpdateTimer(DateTime.Now.AddSeconds(1));
 					return;
