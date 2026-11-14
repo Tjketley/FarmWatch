@@ -1,0 +1,19 @@
+"1234567"
+{
+	"packageid" "1234567"
+	"billingtype" "0"
+	"licensetype" "1"
+	"status" "0"
+	"extended"
+	{
+		"freepromotion" "1"
+		"expirytime" "1791824400"
+	}
+	"appids"
+	{
+		"0" "123456"
+	}
+	"depotids"
+	{
+	}
+}
