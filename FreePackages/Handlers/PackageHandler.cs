@@ -270,9 +270,27 @@ namespace FreePackages {
 			}
 
 			try {
-				// FarmWatch deliberately does not authorize direct AppID activation. An app
-				// alone cannot prove which permanent single-purchase package grants its licence.
-				Bot.ArchiLogger.LogGenericDebug($"FarmWatch skipped direct app/{app.ID}: no verified package-level Free-to-Keep evidence.");
+				// Separate safe path for genuinely free DLC attached to a game already owned by this account.
+				if (app.Type == EAppType.DLC && app.IsFreeApp && app.ParentID is uint parentAppID &&
+					PackageFilter.IsOwnedApp(parentAppID) && PackageFilter.IsRedeemableApp(app)) {
+					BotCache.AddPromotionEvidence(new PromotionEvidence {
+						TargetType = EPackageType.App,
+						TargetID = app.ID,
+						Source = PromotionEvidence.TrustedSource,
+						SourceUrl = $"https://steamdb.info/app/{app.ID}/",
+						ObservedAtUtc = DateTime.UtcNow,
+						IsExplicitFreeToKeep = true,
+						PermanentLicenceConfirmed = true,
+						IsOwnedGameFreeDlc = true,
+						ParentAppID = parentAppID
+					});
+					if (BotCache.HasCurrentFreeToKeepEvidence(new Package(EPackageType.App, app.ID))) {
+						BotCache.AddPackage(new Package(EPackageType.App, app.ID, filterHash: PackageFilter.Hash));
+						Bot.ArchiLogger.LogGenericInfo($"FarmWatch queued free DLC app/{app.ID} for owned game/{parentAppID}.");
+					}
+				} else {
+					Bot.ArchiLogger.LogGenericDebug($"FarmWatch skipped app/{app.ID}: not verified as free DLC for an owned game.");
+				}
 			} finally {
 				BotCache.RemoveChange(appID: app.ID);
 			}
