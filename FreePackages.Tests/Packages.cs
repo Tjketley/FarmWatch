@@ -101,6 +101,24 @@ public sealed class Packages : IDisposable {
 		Assert.AreEqual<uint>(2990600, package.PackageContentIDs.Single());
 		Assert.AreEqual<ulong>(1791565200, package.StartTime);
 		Assert.AreEqual<ulong>(1791824400, package.ExpiryTime);
+		Assert.IsFalse(package.IsAvailable(), "The real historical promotion has expired and must not be treated as currently claimable.");
+    }
+
+    [TestMethod]
+    public void AcceptsCurrentNoCostFreePromotionMetadataShape() {
+		KeyValue? kv = KeyValue.LoadAsText("package_freepromotion.txt");
+
+		if (kv == null) {
+			throw new InvalidOperationException(nameof(kv));
+		}
+
+		FilterablePackage package = new(kv);
+
+		Assert.IsTrue(package.FreePromotion);
+		Assert.IsFalse(package.FreeWeekend);
+		Assert.AreEqual(EBillingType.NoCost, package.BillingType);
+		Assert.AreEqual(ELicenseType.SinglePurchase, package.LicenseType);
+		Assert.IsTrue(package.IsAvailable());
     }
 
     [TestMethod]
