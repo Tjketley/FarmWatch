@@ -12,6 +12,8 @@ namespace FreePackages {
 		public DateTime? PromotionEndsAtUtc { get; set; }
 		public bool IsExplicitFreeToKeep { get; set; }
 		public bool PermanentLicenceConfirmed { get; set; }
+		public bool IsOwnedGameFreeDlc { get; set; }
+		public uint ParentAppID { get; set; }
 
 		public bool HasValidShape() =>
 			TargetID > 0 &&
