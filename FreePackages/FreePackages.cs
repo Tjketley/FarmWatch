@@ -19,6 +19,8 @@ namespace FreePackages {
 		internal static GlobalCache? GlobalCache;
 		// Global kill switch. Missing configuration is deliberately disabled.
 		internal static bool FarmWatchAutoClaimEnabled { get; private set; } = false;
+		// Observe-only is the safe default. Auto-claim requires an explicit opt-out plus both enable switches.
+		internal static bool FarmWatchObserveOnly { get; private set; } = true;
 
 		public Task OnLoaded() {
 			ASF.ArchiLogger.LogGenericInfo("Free Packages ASF Plugin by Citrinate");
@@ -35,7 +37,12 @@ namespace FreePackages {
 				additionalConfigProperties.TryGetValue("FarmWatchAutoClaimEnabled", out JsonElement autoClaimSetting) &&
 				autoClaimSetting.ValueKind == JsonValueKind.True;
 
+ 			FarmWatchObserveOnly = additionalConfigProperties == null ||
+				!additionalConfigProperties.TryGetValue("FarmWatchObserveOnly", out JsonElement observeOnlySetting) ||
+				observeOnlySetting.ValueKind != JsonValueKind.False;
+
 			ASF.ArchiLogger.LogGenericInfo("FarmWatch auto-claim global switch : " + FarmWatchAutoClaimEnabled.ToString());
+			ASF.ArchiLogger.LogGenericInfo("FarmWatch observe-only mode : " + FarmWatchObserveOnly.ToString());
 
 			if (GlobalCache == null) {
 				GlobalCache = await GlobalCache.CreateOrLoad().ConfigureAwait(false);
