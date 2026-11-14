@@ -136,7 +136,7 @@ namespace FreePackages {
 				bool verified = current != null &&
 					current.FreePromotion &&
 					!current.FreeWeekend &&
-					current.BillingType == EBillingType.FreeOnDemand &&
+					current.BillingType == EBillingType.NoCost &&
 					current.LicenseType == ELicenseType.SinglePurchase &&
 					current.IsAvailable() &&
 					(current.StartTime == 0 || current.StartTime <= now) &&
