@@ -269,20 +269,10 @@ namespace FreePackages {
 				return;
 			}
 
-			if (!PackageFilter.Ready) {
-				return;
-			}
-
 			try {
-				if (!PackageFilter.IsRedeemableApp(app)) {
-					return;
-				}
-
-				if (!PackageFilter.IsWantedApp(app)) {
-					return;
-				}
-
-				BotCache.AddPackage(new Package(EPackageType.App, app.ID, filterHash: PackageFilter.Hash));
+				// FarmWatch deliberately does not authorize direct AppID activation. An app
+				// alone cannot prove which permanent single-purchase package grants its licence.
+				Bot.ArchiLogger.LogGenericDebug($"FarmWatch skipped direct app/{app.ID}: no verified package-level Free-to-Keep evidence.");
 			} finally {
 				BotCache.RemoveChange(appID: app.ID);
 			}
@@ -349,24 +339,9 @@ namespace FreePackages {
 				return;
 			}
 
-			if (!PackageFilter.Ready) {
-				return;
-			}
-
 			try {
-				if (app.Parent == null) {
-					return;
-				}
-
-				if (!PackageFilter.IsRedeemablePlaytest(app)) {
-					return;
-				}
-
-				if (!PackageFilter.IsWantedPlaytest(app)) {
-					return;
-				}
-
-				BotCache.AddPackage(new Package(EPackageType.Playtest, app.Parent.ID, filterHash: PackageFilter.Hash));
+				// Playtest access is temporary/conditional, never a permanent Free-to-Keep licence.
+				Bot.ArchiLogger.LogGenericDebug($"FarmWatch skipped playtest app/{app.ID}: playtests are not eligible for auto-claim.");
 			} finally {
 				BotCache.RemoveChange(appID: app.ID);
 			}
