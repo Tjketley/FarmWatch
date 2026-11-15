@@ -116,6 +116,65 @@ public sealed class FarmWatchController : ArchiController {
 		});
 	}
 
+
+	[HttpPost("ConfigureAllBots")]
+	[ProducesResponseType((int) HttpStatusCode.OK)]
+	public async Task<ActionResult<object>> ConfigureAllBots() {
+		int configured = 0;
+		int unchanged = 0;
+		List<string> failed = new();
+
+		foreach (Bot bot in Bot.Bots?.Values.OrderBy(bot => bot.BotName) ?? Enumerable.Empty<Bot>()) {
+			string configPath = Bot.GetFilePath(bot.BotName, Bot.EFileType.Config);
+			string temporaryPath = configPath + ".farmwatch.tmp";
+
+			try {
+				if (!File.Exists(configPath)) {
+					failed.Add(bot.BotName + ": config file not found");
+					continue;
+				}
+
+				JsonNode? parsed = JsonNode.Parse(await File.ReadAllTextAsync(configPath).ConfigureAwait(false));
+				if (parsed is not JsonObject config) {
+					failed.Add(bot.BotName + ": config JSON root is not an object");
+					continue;
+				}
+
+				bool changed = false;
+				if (config["EnableFreePackages"]?.GetValue<bool>() != true) {
+					config["EnableFreePackages"] = true;
+					changed = true;
+				}
+				if (config["FarmWatchAutoClaimEnabled"] == null) {
+					config["FarmWatchAutoClaimEnabled"] = false;
+					changed = true;
+				}
+
+				if (!changed) {
+					unchanged++;
+					continue;
+				}
+
+				await File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
+				File.Move(temporaryPath, configPath, true);
+				configured++;
+				FarmWatchDiagnostics.Record("settings", "FarmWatch bot configuration added to bot JSON. Auto-claim remains disabled for this bot until explicitly enabled.", bot.BotName, "success");
+			} catch (Exception e) {
+				try { if (File.Exists(temporaryPath)) File.Delete(temporaryPath); } catch { }
+				failed.Add(bot.BotName + ": " + e.Message);
+				FarmWatchDiagnostics.Record("settings", "Could not update bot JSON for FarmWatch setup.", bot.BotName, "error", e.Message);
+			}
+		}
+
+		return Ok(new {
+			configured,
+			unchanged,
+			failed,
+			restartRequired = configured > 0,
+			message = configured > 0 ? "FarmWatch settings were added. Restart the affected bots to load the plugin module." : "No bot configuration files needed changes."
+		});
+	}
+
 	[HttpPost("Settings")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	[ProducesResponseType((int) HttpStatusCode.BadRequest)]
