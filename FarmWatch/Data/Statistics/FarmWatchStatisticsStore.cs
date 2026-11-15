@@ -17,10 +17,13 @@ internal static class FarmWatchStatisticsStore {
 	private static readonly string StorePath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.statistics.json");
 	private static readonly string TemporaryPath = StorePath + ".tmp";
 	private static readonly string FarmingPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.farming.json");
+	private static readonly string TradesPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.trades.json");
+	private static readonly string TradesTemporaryPath = TradesPath + ".tmp";
 	private static readonly string FarmingTemporaryPath = FarmingPath + ".tmp";
 	private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = false };
 	private static List<ClaimEvent> Claims = new();
 	private static List<FarmingSession> FarmingSessions = new();
+	private static List<TradeEvent> Trades = new();
 	private static bool Initialized;
 
 	internal sealed class ClaimEvent {
@@ -30,6 +33,15 @@ internal static class FarmWatchStatisticsStore {
 		public uint TargetId { get; init; }
 		public DateTime ClaimedAtUtc { get; init; }
 		public string Source { get; init; } = "farmwatch";
+	}
+
+	internal sealed class TradeEvent {
+		public string TradeId { get; init; } = "";
+		public string Bot { get; init; } = "";
+		public DateTime RecordedAtUtc { get; init; }
+		public string Source { get; init; } = "live_callback";
+		public uint ItemsSent { get; init; }
+		public uint ItemsReceived { get; init; }
 	}
 
 	internal sealed class FarmingSession {
@@ -48,6 +60,10 @@ internal static class FarmWatchStatisticsStore {
 				if (File.Exists(StorePath)) {
 					List<ClaimEvent>? loaded = JsonSerializer.Deserialize<List<ClaimEvent>>(File.ReadAllText(StorePath), JsonOptions);
 					if (loaded != null) Claims = loaded.Where(item => item != null && item.TargetId > 0 && item.ClaimedAtUtc != default).ToList();
+				}
+				if (File.Exists(TradesPath)) {
+					List<TradeEvent>? trades = JsonSerializer.Deserialize<List<TradeEvent>>(File.ReadAllText(TradesPath), JsonOptions);
+					if (trades != null) Trades = trades.Where(item => item != null && !string.IsNullOrEmpty(item.TradeId)).ToList();
 				}
 				if (File.Exists(FarmingPath)) {
 					List<FarmingSession>? sessions = JsonSerializer.Deserialize<List<FarmingSession>>(File.ReadAllText(FarmingPath), JsonOptions);
@@ -92,6 +108,45 @@ internal static class FarmWatchStatisticsStore {
 			if (active == null) return;
 			active.EndedAtUtc = DateTime.UtcNow;
 			SaveFarmingLocked();
+		}
+	}
+
+
+	internal static void RecordAcceptedTrade(string bot, ulong tradeOfferId, uint itemsSent, uint itemsReceived) {
+		if (string.IsNullOrEmpty(bot) || tradeOfferId == 0) return;
+		Initialize();
+		lock (Sync) {
+			string tradeId = tradeOfferId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+			if (Trades.Any(item => item.TradeId == tradeId && item.Bot.Equals(bot, StringComparison.OrdinalIgnoreCase))) return;
+			Trades.Add(new TradeEvent { TradeId = tradeId, Bot = bot, RecordedAtUtc = DateTime.UtcNow, ItemsSent = itemsSent, ItemsReceived = itemsReceived });
+			SaveTradesLocked();
+		}
+	}
+
+	internal static object GetTradeSummary() {
+		Initialize();
+		lock (Sync) {
+			DateTime now = DateTime.UtcNow;
+			DateTime today = now.Date;
+			DateTime month = new(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+			return new {
+				completedTrades = Trades.Count,
+				itemsSent = Trades.Sum(item => (long) item.ItemsSent),
+				itemsReceived = Trades.Sum(item => (long) item.ItemsReceived),
+				today = Trades.Count(item => item.RecordedAtUtc >= today),
+				thisMonth = Trades.Count(item => item.RecordedAtUtc >= month),
+				historySource = "live_callbacks_only"
+			};
+		}
+	}
+
+	private static void SaveTradesLocked() {
+		try {
+			Directory.CreateDirectory(ArchiSteamFarm.SharedInfo.ConfigDirectory);
+			File.WriteAllText(TradesTemporaryPath, JsonSerializer.Serialize(Trades, JsonOptions));
+			File.Move(TradesTemporaryPath, TradesPath, true);
+		} catch (Exception e) {
+			ASF.ArchiLogger.LogGenericWarningException(e);
 		}
 	}
 
