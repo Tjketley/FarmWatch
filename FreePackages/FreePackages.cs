@@ -23,6 +23,10 @@ namespace FreePackages {
 		internal static bool FarmWatchAutoClaimEnabled { get; private set; } = false;
 		// Observe-only is the safe default. Auto-claim requires an explicit opt-out plus both enable switches.
 		internal static bool FarmWatchObserveOnly { get; private set; } = true;
+		internal static void ApplyGlobalSettings(bool autoClaimEnabled, bool observeOnly) {
+			FarmWatchAutoClaimEnabled = autoClaimEnabled;
+			FarmWatchObserveOnly = observeOnly;
+		}
 
 		public Task OnLoaded() {
 			ASF.ArchiLogger.LogGenericInfo("FarmWatch ASF Plugin (based on Citrinate/FreePackages, Apache-2.0)");
@@ -126,6 +130,10 @@ namespace FreePackages {
 				}
 			}
 			
+			if (FarmWatchSettings.Current.BotAutoClaim.TryGetValue(bot.BotName, out bool savedBotSetting)) {
+				farmWatchEnabled = savedBotSetting;
+			}
+
 			if (isEnabled) {
 				await PackageHandler.AddHandler(bot, filterConfigs, packageLimit, pauseWhilePlaying, pauseWhileFarming, farmWatchEnabled).ConfigureAwait(false);
 			}
