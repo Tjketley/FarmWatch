@@ -59,6 +59,13 @@ manifest_data["icons"] = [{"src": "farmwatch-mark.svg", "sizes": "any", "type": 
 manifest_data["background_color"] = "#0c141b"
 manifest.write_text(json.dumps(manifest_data, indent=2) + "\n")
 
+settings = root / "src/style/settings.scss"
+settings_text = settings.read_text()
+settings_text = settings_text.replace("$color-status-online: #57cbde;", "$color-status-online: #63e6a4;")
+settings_text = settings_text.replace("$color-status-farming: #90ba3c;", "$color-status-farming: #b4d9c3;")
+settings_text = settings_text.replace("$color-level-info: $color-theme-teal;", "$color-level-info: #63e6a4;")
+settings.write_text(settings_text)
+
 routes = root / "src/router/routes.js"
 text = routes.read_text()
 route_names_anchor = "  home: 'home',"
