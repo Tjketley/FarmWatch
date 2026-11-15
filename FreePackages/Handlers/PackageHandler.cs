@@ -15,7 +15,11 @@ namespace FreePackages {
 		internal readonly Bot Bot;
 		internal readonly BotCache BotCache;
 		internal readonly PackageFilter PackageFilter;
-		internal readonly bool FarmWatchEnabled;
+		internal bool FarmWatchEnabled { get; private set; }
+		internal void SetFarmWatchEnabled(bool enabled) {
+			FarmWatchEnabled = enabled;
+			ActivationQueue.FarmWatchEnabled = enabled;
+		}
 		private readonly ActivationQueue ActivationQueue;
 		private readonly RemovalQueue RemovalQueue;
 		private CancellationTokenSource? RemovalCancellation;
