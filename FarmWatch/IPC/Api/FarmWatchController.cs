@@ -40,6 +40,12 @@ public sealed class FarmWatchController : ArchiController {
 			bots
 		});
 	}
+	[HttpGet("Statistics")]
+	[ProducesResponseType((int) HttpStatusCode.OK)]
+	public ActionResult<object> GetStatistics([FromQuery] int limit = 50) {
+		return Ok(FarmWatchStatisticsStore.GetDashboardStatistics(Math.Clamp(limit, 1, 200)));
+	}
+
 	[HttpGet("ConnectStatus")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	public ActionResult<object> GetConnectStatus() => Ok(ConnectUploader.GetStatus());
