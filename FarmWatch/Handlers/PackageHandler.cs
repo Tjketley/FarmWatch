@@ -203,6 +203,7 @@ namespace FreePackages {
 				).ConfigureAwait(false);
 
 				if (apps == null) {
+					FarmWatchDiagnostics.Record("steam", "App metadata could not be converted into filterable records.", level: "error");
 					ASF.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
 
 					return;
@@ -232,6 +233,7 @@ namespace FreePackages {
 				).ConfigureAwait(false);
 
 				if (packages == null) {
+					FarmWatchDiagnostics.Record("steam", "Package metadata could not be converted into filterable records.", level: "error");
 					ASF.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
 
 					return;
@@ -289,11 +291,13 @@ namespace FreePackages {
 					PromotionEvidence evidence = PromotionEvidence.ForOwnedGameFreeDlc(app.ID, parentAppID, DateTime.UtcNow);
 					if (BotCache.AddPromotionEvidence(evidence) && BotCache.HasCurrentClaimEvidence(new Package(EPackageType.App, app.ID))) {
 						BotCache.AddPackage(new Package(EPackageType.App, app.ID, filterHash: PackageFilter.Hash));
+						FarmWatchDiagnostics.Record("queue", $"Queued verified free DLC app/{app.ID} for owned game/{parentAppID}.", Bot.BotName, "success");
 						Bot.ArchiLogger.LogGenericInfo($"FarmWatch queued free DLC app/{app.ID} for owned game/{parentAppID}.");
 					} else {
 						Bot.ArchiLogger.LogGenericWarning($"FarmWatch did not queue app/{app.ID}: owned-game free-DLC evidence failed validation.");
 					}
 				} else {
+					FarmWatchDiagnostics.Record("eligibility", $"Skipped app/{app.ID}: it was not verified as free DLC for a game this account owns.", Bot.BotName);
 					Bot.ArchiLogger.LogGenericDebug($"FarmWatch skipped app/{app.ID}: not verified as free DLC for an owned game.");
 				}
 			} finally {
