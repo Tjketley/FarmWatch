@@ -42,8 +42,9 @@ routes = root / "src/router/routes.js"
 text = routes.read_text()
 needle = "  home: 'home',"
 assert needle in text, "ASF-ui route anchor changed"
-addition = """\n  farmWatch: 'farmwatch',\n  farmWatchAnalytics: 'farmwatch-analytics',\n  farmWatchSafety: 'farmwatch-safety',"""
-text = text.replace(needle, needle + addition, 1)needle = "  {\n    path: '/bots',"
+addition = """\\n  farmWatch: 'farmwatch',\\n  farmWatchAnalytics: 'farmwatch-analytics',\\n  farmWatchSafety: 'farmwatch-safety',"""
+text = text.replace(needle, needle + addition, 1)
+needle = "  {\\n    path: '/bots',"
 assert needle in text, "ASF-ui bots route anchor changed"
 route = """  {
     path: '/farmwatch',
@@ -66,11 +67,10 @@ routes.write_text(text)
 
 nav = root / "src/components/App/Navigation.vue"
 text = nav.read_text()
-needle = '        <NavigationLink :name="$t(\'bots\')" icon="users" :to="{ name: \'bots\' }"></NavigationLink>'
+needle = '        <NavigationLink :name="$t(\\'bots\\')" icon="users" :to="{ name: \\'bots\\' }"></NavigationLink>'
 assert needle in text, "ASF-ui navigation anchor changed"
-text = text.replace(needle, needle + '\n        <NavigationLink name="FarmWatch" icon="eye" :to="{ name: \'farmwatch\' }"></NavigationLink>', 1)
-        <NavigationLink name="Analytics" icon="chart-line" :to="{ name: 'farmwatch-analytics' }"></NavigationLink>
-        <NavigationLink name="Safety & controls" icon="shield-alt" :to="{ name: 'farmwatch-safety' }"></NavigationLink>
+addition = """\\n        <NavigationLink name="FarmWatch" icon="eye" :to="{ name: 'farmwatch' }"></NavigationLink>\\n        <NavigationLink name="Analytics" icon="chart-line" :to="{ name: 'farmwatch-analytics' }"></NavigationLink>\\n        <NavigationLink name="Safety & controls" icon="shield-alt" :to="{ name: 'farmwatch-safety' }"></NavigationLink>"""
+text = text.replace(needle, needle + addition, 1)
 nav.write_text(text)
 
 brand = root / "src/components/Navigation/Brand.vue"
