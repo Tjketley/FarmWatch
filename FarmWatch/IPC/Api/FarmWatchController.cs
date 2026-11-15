@@ -17,14 +17,20 @@ public sealed class FarmWatchController : ArchiController {
 	[HttpGet("Status")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	public ActionResult<object> GetStatus() {
-		var bots = PackageHandler.Handlers.Values
-			.OrderBy(handler => handler.Bot.BotName)
-			.Select(handler => new {
-				name = handler.Bot.BotName,
-				connected = handler.Bot.IsConnectedAndLoggedOn,
-				autoClaimEnabled = handler.FarmWatchEnabled
+		var bots = Bot.Bots?.Values
+			.OrderBy(bot => bot.BotName)
+			.Select(bot => {
+				bool configured = PackageHandler.Handlers.TryGetValue(bot.BotName, out PackageHandler? handler);
+				bool autoClaimEnabled = handler?.FarmWatchEnabled ??
+					(FarmWatchSettings.Current.BotAutoClaim.TryGetValue(bot.BotName, out bool savedSetting) && savedSetting);
+				return new {
+					name = bot.BotName,
+					connected = bot.IsConnectedAndLoggedOn,
+					configured,
+					autoClaimEnabled
+				};
 			})
-			.ToArray();
+			.ToArray() ?? [];
 
 		return Ok(new {
 			name = "FarmWatch",
@@ -34,7 +40,6 @@ public sealed class FarmWatchController : ArchiController {
 			bots
 		});
 	}
-
 	[HttpGet("Diagnostics")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	public ActionResult<object> GetDiagnostics() {
