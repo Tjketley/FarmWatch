@@ -86,9 +86,8 @@ jobs:
 
       - name: Create and verify ASF plugin ZIP
         run: |
-          cd out/${{ env.PLUGIN_NAME }}
+          cd out
           7z a -tzip -mx7 ../${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip *
-          cd ..
           unzip -Z1 ${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip > package-files.txt
           grep -qx '${{ env.PLUGIN_NAME }}.dll' package-files.txt
           grep -qx 'LICENSE' package-files.txt
