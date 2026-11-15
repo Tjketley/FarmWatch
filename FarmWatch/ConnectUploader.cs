@@ -156,7 +156,13 @@ internal static class ConnectUploader {
 			InstanceId = FarmWatchSettings.Current.ConnectInstanceId,
 			RecordedAt = DateTime.UtcNow,
 			Statistics = statistics,
-			Claims = Array.Empty<object>()
+			Claims = FarmWatchStatisticsStore.GetClaims().Select(claim => (object) new {
+				claim_id = claim.EventId,
+				target_type = claim.TargetType,
+				target_id = claim.TargetId,
+				claimed_at = claim.ClaimedAtUtc.ToUniversalTime().ToString("o"),
+				source = claim.Source
+			}).ToArray()
 		};
 	}
 
