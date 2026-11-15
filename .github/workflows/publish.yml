@@ -1,5 +1,5 @@
-name: publish
-# Manual smoke-test entry point; push also runs this workflow.
+name: FarmWatch CI and Release
+# Build, test, and package FarmWatch. Version tags publish ASF-compatible plugin releases.
 
 on:
   push:
@@ -30,10 +30,10 @@ jobs:
       - name: Prepare for publishing
         run: dotnet restore
 
-      - name: Run FarmWatch.Tests
+      - name: Run FarmWatch automated tests
         run: dotnet test FreePackages.Tests -p:ContinuousIntegrationBuild=true --nologo
 
-      - name: Publish
+      - name: Build FarmWatch plugin
         run: |
           dotnet publish FreePackages -c "Release" -o "out/generic" -p:ContinuousIntegrationBuild=true --nologo
           mkdir -p ./out/dist/${{ env.PLUGIN_NAME }}
@@ -43,12 +43,12 @@ jobs:
           cp README.md ./out/dist/${{ env.PLUGIN_NAME }}/README.md
           cp -R FreePackages/www ./out/dist/${{ env.PLUGIN_NAME }}/www
 
-      - name: Create README
+      - name: Generate FarmWatch documentation
         uses: docker://pandoc/core:3.1
         with:
           args: --metadata title="${{ env.PLUGIN_NAME }}" --standalone --columns 2000 -f markdown -t html --embed-resources --standalone -c ./github-pandoc.css -o ./out/dist/${{ env.PLUGIN_NAME }}/README.html README.md
 
-      - name: Upload ${{ env.PLUGIN_NAME }}
+      - name: Upload FarmWatch package
         uses: actions/upload-artifact@v4.0.0
         with:
           name: ${{ env.PLUGIN_NAME }}
@@ -84,7 +84,7 @@ jobs:
         with:
           subject-path: 'out/${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip'
 
-      - name: Create ${{ env.PLUGIN_NAME }} GitHub release
+      - name: Publish FarmWatch GitHub release
         uses: ncipollo/release-action@v1.13.0
         with:
           artifacts: out/${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip
