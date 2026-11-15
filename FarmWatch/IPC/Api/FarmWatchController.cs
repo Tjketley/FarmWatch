@@ -110,6 +110,8 @@ public sealed class FarmWatchController : ArchiController {
 		int safeLimit = Math.Clamp(limit, 1, 500);
 		return Ok(new {
 			generatedAtUtc = DateTime.UtcNow,
+			persistent = FarmWatchDiagnostics.IsPersistent,
+			storageFile = FarmWatchDiagnostics.StorageFileName,
 			limit = safeLimit,
 			retainedEvents = FarmWatchDiagnostics.GetRecent(500).Length,
 			events = FarmWatchDiagnostics.GetRecent(safeLimit)
