@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using ArchiSteamFarm.Core;
 
 namespace FreePackages;
@@ -32,6 +33,11 @@ internal static class FarmWatchDiagnostics {
 		lock (FileLock) {
 			if (Initialized) return;
 			Initialized = true;
+			AppDomain.CurrentDomain.UnhandledException += (_, args) => Record("crash", "Unhandled process exception.", level: "error", details: args.ExceptionObject?.ToString() ?? "No exception details supplied.");
+			TaskScheduler.UnobservedTaskException += (_, args) => {
+				Record("crash", "Unobserved task exception.", level: "error", details: args.Exception.ToString());
+				args.SetObserved();
+			};
 
 			try {
 				if (!File.Exists(LogPath)) return;
