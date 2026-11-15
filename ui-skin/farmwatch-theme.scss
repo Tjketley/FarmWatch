@@ -1,0 +1,72 @@
+/* FarmWatch skin overlay for the official ASF-ui.
+   Applied to the upstream App.vue after its normal component styles. */
+:root {
+  --color-theme: #35e879;
+  --color-theme-dark: #20bd60;
+  --color-theme-light: #62f394;
+  --color-background: #0b1012;
+  --color-background-modal: #151d20;
+  --color-background-light: #172126;
+  --color-background-dark: #070b0d;
+  --color-navigation: #0d1518;
+  --color-navigation-dark: #091114;
+  --color-navigation-darker: #060b0d;
+  --color-text: #dce9e2;
+  --color-text-dark: #c5d3cb;
+  --color-text-info: #8cebb0;
+  --color-text-secondary: #91a79a;
+  --color-text-disabled: #64756b;
+  --color-border: #293a32;
+  --color-button-default: #1b2923;
+  --color-button-cancel: #b94a58;
+  --color-button-cancel-active: #d45a69;
+  --color-releases-code: rgb(53 232 121 / 9%);
+}
+html, body { background: #070b0d; color: #dce9e2; }
+body, button, input, select, textarea { font-family: Inter, "Segoe UI", system-ui, sans-serif; }
+.app { background: #0b1012; color: #dce9e2; }
+.app--dark-mode {
+  --color-background: #0b1012;
+  --color-background-light: #172126;
+  --color-background-modal: #151d20;
+  --color-text: #dce9e2;
+  --color-text-dark: #c5d3cb;
+  --color-text-info: #8cebb0;
+  --color-border: #293a32;
+  --color-text-secondary: #91a79a;
+  --color-text-disabled: #64756b;
+  --color-button-default: #1b2923;
+}
+.side-navigation, .side-menu, .header { background: #0d1518; }
+.content { background: #0b1012; }
+.panel, .card, .box, .modal-content, .main-container,
+[class*="card"], [class*="panel"] {
+  border-color: #263832;
+}
+button, .btn, input, select, textarea, .multiselect__tags {
+  border-radius: 8px;
+}
+button, .btn {
+  transition: background-color .16s ease, border-color .16s ease, transform .16s ease;
+}
+button:hover, .btn:hover { border-color: #35e879; }
+a, .link { color: #55e88b; }
+a:hover, .link:hover { color: #8cf5b3; }
+input, select, textarea, .multiselect__tags {
+  background: #10191c;
+  border-color: #30443a;
+  color: #e2eee6;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #35e879;
+  box-shadow: 0 0 0 2px rgb(53 232 121 / 13%);
+  outline: none;
+}
+table, th, td { border-color: #263832; }
+pre, code { background: #080e10; color: #b9f5ce; }
+::-webkit-scrollbar { background: #080e10; }
+::-webkit-scrollbar-thumb { background: #263a30; border-radius: 8px; }
+::selection { background: rgb(53 232 121 / 25%); color: #f4fff7; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
