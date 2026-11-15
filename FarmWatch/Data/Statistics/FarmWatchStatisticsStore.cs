@@ -192,8 +192,23 @@ internal static class FarmWatchStatisticsStore {
 			DateTime now = DateTime.UtcNow;
 			DateTime today = now.Date;
 			DateTime month = new(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+			DateTime chartStart = today.AddDays(-29);
+			var dailyActivity = Enumerable.Range(0, 30).Select(offset => {
+				DateTime dayStart = chartStart.AddDays(offset);
+				DateTime dayEnd = dayStart.AddDays(1) < now ? dayStart.AddDays(1) : now;
+				double farmingSeconds = FarmingSessions
+					.Where(item => item.StartedAtUtc < dayEnd && (item.EndedAtUtc ?? now) > dayStart)
+					.Sum(item => Math.Max(0, (Math.Min(item.EndedAtUtc ?? now, dayEnd) - (item.StartedAtUtc > dayStart ? item.StartedAtUtc : dayStart)).TotalSeconds));
+				return new {
+					date = dayStart.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+					claims = Claims.Count(item => item.ClaimedAtUtc >= dayStart && item.ClaimedAtUtc < dayEnd),
+					farmingSeconds,
+					trades = Trades.Count(item => item.RecordedAtUtc >= dayStart && item.RecordedAtUtc < dayEnd)
+				};
+			}).ToArray();
 			return new {
 				generatedAtUtc = now,
+				dailyActivity,
 				claims = new {
 					total = Claims.Count,
 					freeToKeepPackages = Claims.Count(item => item.TargetType == EPackageType.Sub.ToString()),
