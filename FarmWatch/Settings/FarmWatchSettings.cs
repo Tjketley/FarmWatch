@@ -22,6 +22,18 @@ internal sealed class FarmWatchSettings : SerializableFile {
 	[JsonInclude]
 	public ConcurrentDictionary<string, bool> BotAutoClaim { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
+	[JsonInclude]
+	public bool ConnectEnabled { get; set; }
+
+	[JsonInclude]
+	public string ConnectEndpoint { get; set; } = "";
+
+	[JsonInclude]
+	public string ConnectToken { get; set; } = "";
+
+	[JsonInclude]
+	public string ConnectInstanceId { get; set; } = "";
+
 	[JsonConstructor]
 	internal FarmWatchSettings() => FilePath = SettingsPath;
 
@@ -53,4 +65,6 @@ internal sealed class FarmWatchSettings : SerializableFile {
 		BotAutoClaim[botName] = enabled;
 		await Save().ConfigureAwait(false);
 	}
+
+	internal Task SaveConnect() => Save();
 }
