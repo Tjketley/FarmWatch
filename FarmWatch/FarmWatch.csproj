@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <AssemblyName>FarmWatch</AssemblyName>
+    <RootNamespace>FreePackages</RootNamespace>
     <Authors>Thomas Ketley (based on Citrinate/FreePackages)</Authors>
     <CoreCompileDependsOn>PrepareResources;$(CompileDependsOn)</CoreCompileDependsOn>
   </PropertyGroup>
@@ -17,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-      <InternalsVisibleTo Include="FreePackages.Tests" />
+      <InternalsVisibleTo Include="FarmWatch.Tests" />
   </ItemGroup>
 
   <ItemGroup>

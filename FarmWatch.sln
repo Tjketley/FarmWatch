@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.136
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FreePackages", "FreePackages\FreePackages.csproj", "{C485E0CB-4D22-4A09-8CBA-83D1300A83DC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FarmWatch", "FarmWatch\FarmWatch.csproj", "{C485E0CB-4D22-4A09-8CBA-83D1300A83DC}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ArchiSteamFarm", "ArchiSteamFarm\ArchiSteamFarm\ArchiSteamFarm.csproj", "{CF84911C-2C4C-4195-8AF3-ABBB6D3DE9AA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FreePackages.Tests", "FreePackages.Tests\FreePackages.Tests.csproj", "{5A9E1E50-7E5A-442F-83E0-928998450E73}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FarmWatch.Tests", "FarmWatch.Tests\FarmWatch.Tests.csproj", "{5A9E1E50-7E5A-442F-83E0-928998450E73}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -31,17 +31,17 @@ jobs:
         run: dotnet restore
 
       - name: Run FarmWatch automated tests
-        run: dotnet test FreePackages.Tests -p:ContinuousIntegrationBuild=true --nologo
+        run: dotnet test FarmWatch.Tests -p:ContinuousIntegrationBuild=true --nologo
 
       - name: Build FarmWatch plugin
         run: |
-          dotnet publish FreePackages -c "Release" -o "out/generic" -p:ContinuousIntegrationBuild=true --nologo
+          dotnet publish FarmWatch -c "Release" -o "out/generic" -p:ContinuousIntegrationBuild=true --nologo
           mkdir -p ./out/dist/${{ env.PLUGIN_NAME }}
           cp ./out/generic/${{ env.PLUGIN_NAME }}.dll ./out/dist/${{ env.PLUGIN_NAME }}
           ( cd ./out/generic/ ; cp --parents ./*/${{ env.PLUGIN_NAME }}.resources.dll ../dist/${{ env.PLUGIN_NAME }} || : )
           cp LICENSE ./out/dist/${{ env.PLUGIN_NAME }}/LICENSE
           cp README.md ./out/dist/${{ env.PLUGIN_NAME }}/README.md
-          cp -R FreePackages/www ./out/dist/${{ env.PLUGIN_NAME }}/www
+          cp -R FarmWatch/www ./out/dist/${{ env.PLUGIN_NAME }}/www
           test -f ./out/dist/${{ env.PLUGIN_NAME }}/${{ env.PLUGIN_NAME }}.dll
           test -f ./out/dist/${{ env.PLUGIN_NAME }}/www/index.html
           test -f ./out/dist/${{ env.PLUGIN_NAME }}/www/farmwatch-mark.svg
