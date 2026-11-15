@@ -14,6 +14,7 @@ git -C "$WORK" checkout --detach "$ASF_UI_COMMIT"
 
 cp "$ROOT/ui/FarmWatchOverview.vue" "$WORK/src/views/FarmWatchOverview.vue"
 cp "$ROOT/ui/FarmWatchAnalytics.vue" "$WORK/src/views/FarmWatchAnalytics.vue"
+cp "$ROOT/ui/FarmWatchSafety.vue" "$WORK/src/views/FarmWatchSafety.vue"
 cp "$ROOT/ui/farmwatch-theme.scss" "$WORK/src/style/farmwatch-theme.scss"
 cp "$MARK_TMP" "$WORK/src/static/farmwatch-mark.svg"
 
@@ -42,7 +43,8 @@ text = routes.read_text()
 needle = "  home: 'home',"
 assert needle in text, "ASF-ui route anchor changed"
 text = text.replace(needle, needle + "\n  farmWatch: 'farmwatch',
-  farmWatchAnalytics: 'farmwatch-analytics',", 1)
+  farmWatchAnalytics: 'farmwatch-analytics',
+  farmWatchSafety: 'farmwatch-safety',", 1)
 needle = "  {\n    path: '/bots',"
 assert needle in text, "ASF-ui bots route anchor changed"
 route = """  {
@@ -55,6 +57,11 @@ route = """  {
     name: routes.farmWatchAnalytics,
     component: () => import('../views/FarmWatchAnalytics.vue'),
   },
+  {
+    path: '/farmwatch/safety',
+    name: routes.farmWatchSafety,
+    component: () => import('../views/FarmWatchSafety.vue'),
+  },
 """
 text = text.replace(needle, route + needle, 1)
 routes.write_text(text)
@@ -65,6 +72,7 @@ needle = '        <NavigationLink :name="$t(\'bots\')" icon="users" :to="{ name:
 assert needle in text, "ASF-ui navigation anchor changed"
 text = text.replace(needle, needle + '\n        <NavigationLink name="FarmWatch" icon="eye" :to="{ name: \'farmwatch\' }"></NavigationLink>', 1)
         <NavigationLink name="Analytics" icon="chart-line" :to="{ name: 'farmwatch-analytics' }"></NavigationLink>
+        <NavigationLink name="Safety & controls" icon="shield-alt" :to="{ name: 'farmwatch-safety' }"></NavigationLink>
 nav.write_text(text)
 
 brand = root / "src/components/Navigation/Brand.vue"
