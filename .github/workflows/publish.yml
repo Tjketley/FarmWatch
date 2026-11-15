@@ -64,8 +64,8 @@ jobs:
       - name: Create and verify separate release ZIPs
         run: |
           mkdir -p out/release
-          ( cd out/plugin-package && 7z a -tzip -mx7 ../release/FarmWatch.zip * )
-          ( cd out/asf-ui && 7z a -tzip -mx7 ../release/FarmWatch-ASF-UI.zip * )
+          ( cd out/plugin-package && zip -qr ../release/FarmWatch.zip * )
+          ( cd out/asf-ui && zip -qr ../release/FarmWatch-ASF-UI.zip * )
           unzip -Z1 out/release/FarmWatch.zip > out/release/plugin-files.txt
           unzip -Z1 out/release/FarmWatch-ASF-UI.zip > out/release/ui-files.txt
           grep -qx 'FarmWatch.dll' out/release/plugin-files.txt
