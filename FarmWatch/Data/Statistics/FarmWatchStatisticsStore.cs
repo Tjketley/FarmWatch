@@ -186,6 +186,44 @@ internal static class FarmWatchStatisticsStore {
 		}
 	}
 
+	internal static object GetDashboardStatistics(int historyLimit = 50) {
+		Initialize();
+		lock (Sync) {
+			DateTime now = DateTime.UtcNow;
+			DateTime today = now.Date;
+			DateTime month = new(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+			return new {
+				generatedAtUtc = now,
+				claims = new {
+					total = Claims.Count,
+					freeToKeepPackages = Claims.Count(item => item.TargetType == EPackageType.Sub.ToString()),
+					freeDlcApps = Claims.Count(item => item.TargetType == EPackageType.App.ToString()),
+					today = Claims.Count(item => item.ClaimedAtUtc >= today),
+					thisMonth = Claims.Count(item => item.ClaimedAtUtc >= month),
+					recent = Claims.OrderByDescending(item => item.ClaimedAtUtc).Take(historyLimit).ToArray()
+				},
+				farming = new {
+					totalSessions = FarmingSessions.Count,
+					activeSessions = FarmingSessions.Count(item => !item.EndedAtUtc.HasValue),
+					lifetimeSeconds = FarmingSessions.Sum(item => Math.Max(0, ((item.EndedAtUtc ?? now) - item.StartedAtUtc).TotalSeconds)),
+					todaySeconds = FarmingSessions.Where(item => item.StartedAtUtc >= today || (item.EndedAtUtc ?? now) >= today).Sum(item => Math.Max(0, ((item.EndedAtUtc ?? now) - (item.StartedAtUtc < today ? today : item.StartedAtUtc)).TotalSeconds)),
+					thisMonthSeconds = FarmingSessions.Where(item => item.StartedAtUtc >= month || (item.EndedAtUtc ?? now) >= month).Sum(item => Math.Max(0, ((item.EndedAtUtc ?? now) - (item.StartedAtUtc < month ? month : item.StartedAtUtc)).TotalSeconds)),
+					uniqueGames = FarmingSessions.SelectMany(item => item.AppIds).Distinct().Count(),
+					recent = FarmingSessions.OrderByDescending(item => item.StartedAtUtc).Take(historyLimit).ToArray()
+				},
+				trades = new {
+					completedTrades = Trades.Count,
+					itemsSent = Trades.Sum(item => item.ItemsSent),
+					itemsReceived = Trades.Sum(item => item.ItemsReceived),
+					today = Trades.Count(item => item.RecordedAtUtc >= today),
+					thisMonth = Trades.Count(item => item.RecordedAtUtc >= month),
+					historySource = "live_callbacks_only",
+					recent = Trades.OrderByDescending(item => item.RecordedAtUtc).Take(historyLimit).ToArray()
+				}
+			};
+		}
+	}
+
 	private static void SaveClaimsLocked() {
 		try {
 			Directory.CreateDirectory(ArchiSteamFarm.SharedInfo.ConfigDirectory);
