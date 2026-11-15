@@ -55,11 +55,11 @@ body { background: var(--fw-bg) !important; }
   background: rgba(255,255,255,.045) !important;
   color: var(--fw-text) !important;
 }
-.navigation-link.active, .navigation-category a.router-link-active {
+.navigation-link.navigation-link--active, .navigation-category a.router-link-active {
   background: var(--fw-accent-soft) !important;
   color: var(--fw-accent) !important;
 }
-.app-header, header {
+.upper-navigation { background: #0c141b !important; border-bottom: 1px solid var(--fw-border); box-shadow: none !important; }\n.brand { background: transparent !important; color: var(--fw-text) !important; }\n.app-header, header {
   border-bottom: 1px solid var(--fw-border);
   box-shadow: none !important;
 }
