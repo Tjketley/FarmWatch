@@ -13,6 +13,7 @@ git clone --filter=blob:none https://github.com/JustArchiNET/ASF-ui.git "$WORK"
 git -C "$WORK" checkout --detach "$ASF_UI_COMMIT"
 
 cp "$ROOT/ui/FarmWatchOverview.vue" "$WORK/src/views/FarmWatchOverview.vue"
+cp "$ROOT/ui/FarmWatchAnalytics.vue" "$WORK/src/views/FarmWatchAnalytics.vue"
 cp "$ROOT/ui/farmwatch-theme.scss" "$WORK/src/style/farmwatch-theme.scss"
 cp "$MARK_TMP" "$WORK/src/static/farmwatch-mark.svg"
 
@@ -40,13 +41,19 @@ routes = root / "src/router/routes.js"
 text = routes.read_text()
 needle = "  home: 'home',"
 assert needle in text, "ASF-ui route anchor changed"
-text = text.replace(needle, needle + "\n  farmWatch: 'farmwatch',", 1)
+text = text.replace(needle, needle + "\n  farmWatch: 'farmwatch',
+  farmWatchAnalytics: 'farmwatch-analytics',", 1)
 needle = "  {\n    path: '/bots',"
 assert needle in text, "ASF-ui bots route anchor changed"
 route = """  {
     path: '/farmwatch',
     name: routes.farmWatch,
     component: () => import('../views/FarmWatchOverview.vue'),
+  },
+  {
+    path: '/farmwatch/analytics',
+    name: routes.farmWatchAnalytics,
+    component: () => import('../views/FarmWatchAnalytics.vue'),
   },
 """
 text = text.replace(needle, route + needle, 1)
@@ -57,6 +64,7 @@ text = nav.read_text()
 needle = '        <NavigationLink :name="$t(\'bots\')" icon="users" :to="{ name: \'bots\' }"></NavigationLink>'
 assert needle in text, "ASF-ui navigation anchor changed"
 text = text.replace(needle, needle + '\n        <NavigationLink name="FarmWatch" icon="eye" :to="{ name: \'farmwatch\' }"></NavigationLink>', 1)
+        <NavigationLink name="Analytics" icon="chart-line" :to="{ name: 'farmwatch-analytics' }"></NavigationLink>
 nav.write_text(text)
 
 brand = root / "src/components/Navigation/Brand.vue"
