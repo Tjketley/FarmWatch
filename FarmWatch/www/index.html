@@ -168,7 +168,8 @@ $('configureAllBots').addEventListener('click',async()=>{
  }catch(error){$('saveMessage').textContent='Could not configure bots: '+error.message;debugRecord('Bulk bot configuration failed',error.message);}
  finally{button.disabled=false;button.textContent='Configure all bots';}
 });
-\n$('refresh').addEventListener('click',load);
+
+$('refresh').addEventListener('click',load);
 $('debugRefresh').addEventListener('click',loadDiagnostics);
 $('eventRefresh').addEventListener('click',loadBackendEvents);
 $('eventLevel').addEventListener('change',renderBackendEvents);
