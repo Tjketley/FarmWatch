@@ -13,7 +13,7 @@ using ArchiSteamFarm.Helpers.Json;
 namespace FreePackages {
 	[Export(typeof(IPlugin))]
 	public sealed class FreePackages : IASF, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand2, IGitHubPluginUpdates {
-		public string Name => nameof(FreePackages);
+		public string Name => "FarmWatch";
 		public string RepositoryName => "Tjketley/FarmWatch-2";
 		public Version Version => typeof(FreePackages).Assembly.GetName().Version ?? new Version("0");
 		internal static GlobalCache? GlobalCache;
@@ -23,7 +23,7 @@ namespace FreePackages {
 		internal static bool FarmWatchObserveOnly { get; private set; } = true;
 
 		public Task OnLoaded() {
-			ASF.ArchiLogger.LogGenericInfo("Free Packages ASF Plugin by Citrinate");
+			ASF.ArchiLogger.LogGenericInfo("FarmWatch ASF Plugin (based on Citrinate/FreePackages, Apache-2.0)");
 
 			return Task.CompletedTask;
 		}
