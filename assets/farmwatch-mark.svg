@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">FarmWatch eye and shield mark</title>
+  <rect width="256" height="256" rx="30" fill="#101317"/>
+  <path d="M128 22 218 68v68c0 46-36 78-90 98-54-20-90-52-90-98V68l90-46Z" fill="none" stroke="#00e676" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M58 128c20-27 43-41 70-41s50 14 70 41c-20 27-43 41-70 41s-50-14-70-41Z" fill="none" stroke="#00e676" stroke-width="9" stroke-linejoin="round"/>
+  <circle cx="128" cy="128" r="19" fill="none" stroke="#00e676" stroke-width="9"/>
+  <circle cx="128" cy="128" r="6" fill="#00e676"/>
+</svg>
