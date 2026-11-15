@@ -93,6 +93,18 @@ public sealed class FarmWatchController : ArchiController {
 		});
 	}
 
+	[HttpGet("Events")]
+	[ProducesResponseType((int) HttpStatusCode.OK)]
+	public ActionResult<object> GetEvents([FromQuery] int limit = 200) {
+		int safeLimit = Math.Clamp(limit, 1, 500);
+		return Ok(new {
+			generatedAtUtc = DateTime.UtcNow,
+			limit = safeLimit,
+			retainedEvents = FarmWatchDiagnostics.GetRecent(500).Length,
+			events = FarmWatchDiagnostics.GetRecent(safeLimit)
+		});
+	}
+
 	[HttpPost("Settings")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	[ProducesResponseType((int) HttpStatusCode.BadRequest)]
