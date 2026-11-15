@@ -92,8 +92,8 @@ jobs:
       - name: Create and verify separate ZIP packages
         run: |
           cd out
-          7z a -tzip -mx7 "FarmWatch-${GITHUB_REF_NAME}.zip" plugin/*
-          7z a -tzip -mx7 "FarmWatch-ASF-UI-${GITHUB_REF_NAME}.zip" asf-ui/*
+          ( cd plugin && 7z a -tzip -mx7 "../FarmWatch-${GITHUB_REF_NAME}.zip" * )
+          ( cd asf-ui && 7z a -tzip -mx7 "../FarmWatch-ASF-UI-${GITHUB_REF_NAME}.zip" * )
           unzip -Z1 "FarmWatch-${GITHUB_REF_NAME}.zip" > plugin-files.txt
           unzip -Z1 "FarmWatch-ASF-UI-${GITHUB_REF_NAME}.zip" > ui-files.txt
           grep -qx 'FarmWatch.dll' plugin-files.txt
