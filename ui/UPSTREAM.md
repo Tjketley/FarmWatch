@@ -15,4 +15,4 @@ ASF-ui is licensed under Apache License 2.0. The build includes its license in t
 
 Run `bash ui/build-unified-ui.sh` from the repository root. The script clones the pinned upstream source, applies the FarmWatch route/navigation/theme overlay, builds the production UI, and places the static output in `FarmWatch/www`.
 
-The plugin web path intentionally remains `/FarmWatch` during this integration phase. Do not change it to `/` until the complete application has passed native ASF feature, authentication, API, packaging and Raspberry Pi runtime tests.
+FarmWatch implements ASF 6.3.11.7's `IWebInterface` contract with `PhysicalPath = "www"` and `WebPath = "/"`. ASF therefore serves this UI from the normal web root while keeping every UI asset inside the FarmWatch plugin directory. The plugin ZIP includes both the plugin DLL and this generated `www` directory, so ASF's normal plugin installation and update flow installs and updates the UI together. No files are copied into or overwrite ASF's own installation-level `www` directory.
