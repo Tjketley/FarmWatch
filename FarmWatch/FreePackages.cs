@@ -12,7 +12,7 @@ using ArchiSteamFarm.Helpers.Json;
 
 namespace FreePackages {
 	[Export(typeof(IPlugin))]
-	public sealed class FreePackages : IASF, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand2, IGitHubPluginUpdates, IWebInterface {
+	public sealed class FreePackages : IASF, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand2, IGitHubPluginUpdates, IWebInterface, IBotCardsFarmerInfo {
 		public string Name => "FarmWatch";
 		public string RepositoryName => "Tjketley/FarmWatch-2";
 		public string PhysicalPath => "www";
@@ -166,6 +166,21 @@ namespace FreePackages {
 
 		public Task<IReadOnlyCollection<ClientMsgHandler>?> OnBotSteamHandlersInit(Bot bot) {
 			return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>(new List<ClientMsgHandler> { SteamHandler.AddHandler(bot) });
+		}
+
+		public Task OnBotFarmingStarted(Bot bot) {
+			FarmWatchStatisticsStore.RecordFarmingStarted(bot.BotName, bot.CardsFarmer.GamesToFarmReadOnly);
+			return Task.CompletedTask;
+		}
+
+		public Task OnBotFarmingStopped(Bot bot) {
+			FarmWatchStatisticsStore.RecordFarmingStopped(bot.BotName);
+			return Task.CompletedTask;
+		}
+
+		public Task OnBotFarmingFinished(Bot bot, bool farmedSomething) {
+			FarmWatchStatisticsStore.RecordFarmingStopped(bot.BotName);
+			return Task.CompletedTask;
 		}
 
 		private static void OnLicenseList (Bot bot, SteamApps.LicenseListCallback callback) {
