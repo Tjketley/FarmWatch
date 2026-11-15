@@ -13,11 +13,9 @@ using ArchiSteamFarm.Helpers.Json;
 
 namespace FreePackages {
 	[Export(typeof(IPlugin))]
-	public sealed class FreePackages : IASF, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand2, IGitHubPluginUpdates, IWebInterface, IBotCardsFarmerInfo, IBotTradeOfferResults {
+	public sealed class FreePackages : IASF, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand2, IGitHubPluginUpdates, IBotCardsFarmerInfo, IBotTradeOfferResults {
 		public string Name => "FarmWatch";
 		public string RepositoryName => "Tjketley/FarmWatch-2";
-		public string PhysicalPath => "www";
-		public string WebPath => "/FarmWatch";
 		public Version Version => typeof(FreePackages).Assembly.GetName().Version ?? new Version("0");
 		internal static GlobalCache? GlobalCache;
 		private static readonly object GlobalCacheLock = new();
