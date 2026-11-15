@@ -1,3 +1,5 @@
-If you'd like to help translate this plugin you can do so here: https://crowdin.com/project/freepackages
+# FarmWatch translations
 
-Contact me on Crowdin if your language isn't currently listed
+FarmWatch currently retains the upstream FreePackages localization resources for compatibility. Translation strings and Crowdin project metadata have not yet been fully rebranded.
+
+Please avoid treating the legacy translation project name as the current product identity.
