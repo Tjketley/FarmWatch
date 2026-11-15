@@ -209,9 +209,7 @@ internal static class FarmWatchStatisticsStore {
 			var dailyActivity = Enumerable.Range(0, 30).Select(offset => {
 				DateTime dayStart = chartStart.AddDays(offset);
 				DateTime dayEnd = dayStart.AddDays(1) < now ? dayStart.AddDays(1) : now;
-				double farmingSeconds = FarmingSessions
-					.Where(item => item.StartedAtUtc < dayEnd && (item.EndedAtUtc ?? now) > dayStart)
-					.Sum(item => Math.Max(0, (((item.EndedAtUtc ?? now) < dayEnd ? (item.EndedAtUtc ?? now) : dayEnd) - (item.StartedAtUtc > dayStart ? item.StartedAtUtc : dayStart)).TotalSeconds));
+				double farmingSeconds = FarmingSessions.Sum(item => OverlapSeconds(item, dayStart, dayEnd));
 				return new {
 					date = dayStart.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
 					claims = Claims.Count(item => item.ClaimedAtUtc >= dayStart && item.ClaimedAtUtc < dayEnd),
@@ -233,9 +231,9 @@ internal static class FarmWatchStatisticsStore {
 				farming = new {
 					totalSessions = FarmingSessions.Count,
 					activeSessions = FarmingSessions.Count(item => !item.EndedAtUtc.HasValue),
-					lifetimeSeconds = FarmingSessions.Sum(item => Math.Max(0, ((item.EndedAtUtc ?? now) - item.StartedAtUtc).TotalSeconds)),
-					todaySeconds = FarmingSessions.Where(item => item.StartedAtUtc >= today || (item.EndedAtUtc ?? now) >= today).Sum(item => Math.Max(0, ((item.EndedAtUtc ?? now) - (item.StartedAtUtc < today ? today : item.StartedAtUtc)).TotalSeconds)),
-					thisMonthSeconds = FarmingSessions.Where(item => item.StartedAtUtc >= month || (item.EndedAtUtc ?? now) >= month).Sum(item => Math.Max(0, ((item.EndedAtUtc ?? now) - (item.StartedAtUtc < month ? month : item.StartedAtUtc)).TotalSeconds)),
+					lifetimeSeconds = FarmingSessions.Sum(item => OverlapSeconds(item, DateTime.MinValue, now)),
+					todaySeconds = FarmingSessions.Sum(item => OverlapSeconds(item, today, now)),
+					thisMonthSeconds = FarmingSessions.Sum(item => OverlapSeconds(item, month, now)),
 					uniqueGames = FarmingSessions.SelectMany(item => item.AppIds).Distinct().Count(),
 					recent = FarmingSessions.OrderByDescending(item => item.StartedAtUtc).Take(historyLimit).ToArray()
 				},
