@@ -86,6 +86,9 @@ internal static class FarmWatchDiagnostics {
 		}
 	}
 
+	internal static string StorageFileName => Path.GetFileName(LogPath);
+	internal static bool IsPersistent => true;
+
 	internal static FarmWatchEvent[] GetRecent(int limit = 200) {
 		int safeLimit = Math.Clamp(limit, 1, MaximumEvents);
 		return Events.ToArray().OrderByDescending(entry => entry.Id).Take(safeLimit).ToArray();
