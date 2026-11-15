@@ -15,7 +15,7 @@ public sealed class FarmWatchEligibilityPolicyTests {
 		}
 
 		FilterablePackage package = new(packageKey);
-		package.AddPackageContents(new[] { appKey["appinfo"] });
+		package.AddPackageContents(new[] { appKey });
 		return package;
 	}
 
