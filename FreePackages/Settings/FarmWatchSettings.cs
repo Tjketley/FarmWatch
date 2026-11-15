@@ -11,6 +11,7 @@ namespace FreePackages;
 internal sealed class FarmWatchSettings : SerializableFile {
 	private static readonly string SettingsPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.json");
 	internal static FarmWatchSettings Current { get; private set; } = new();
+	internal static bool Exists => File.Exists(SettingsPath);
 
 	[JsonInclude]
 	public bool AutoClaimEnabled { get; set; }
