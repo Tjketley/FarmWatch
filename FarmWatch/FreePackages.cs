@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Composition;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,7 +13,7 @@ using ArchiSteamFarm.Helpers.Json;
 
 namespace FreePackages {
 	[Export(typeof(IPlugin))]
-	public sealed class FreePackages : IASF, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand2, IGitHubPluginUpdates, IWebInterface, IBotCardsFarmerInfo {
+	public sealed class FreePackages : IASF, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand2, IGitHubPluginUpdates, IWebInterface, IBotCardsFarmerInfo, IBotTradeOfferResults {
 		public string Name => "FarmWatch";
 		public string RepositoryName => "Tjketley/FarmWatch-2";
 		public string PhysicalPath => "www";
@@ -180,6 +181,16 @@ namespace FreePackages {
 
 		public Task OnBotFarmingFinished(Bot bot, bool farmedSomething) {
 			FarmWatchStatisticsStore.RecordFarmingStopped(bot.BotName);
+			return Task.CompletedTask;
+		}
+
+		public Task OnBotTradeOfferResults(Bot bot, IReadOnlyCollection<ArchiSteamFarm.Steam.Exchange.ParseTradeResult> tradeResults) {
+			foreach (ArchiSteamFarm.Steam.Exchange.ParseTradeResult result in tradeResults) {
+				if (result.Result != ArchiSteamFarm.Steam.Exchange.ParseTradeResult.EResult.Accepted || !result.Confirmed) continue;
+				uint itemsSent = result.ItemsToGive?.Sum(item => item.Amount) ?? 0;
+				uint itemsReceived = result.ItemsToReceive?.Sum(item => item.Amount) ?? 0;
+				FarmWatchStatisticsStore.RecordAcceptedTrade(bot.BotName, result.TradeOfferID, itemsSent, itemsReceived);
+			}
 			return Task.CompletedTask;
 		}
 
