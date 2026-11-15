@@ -32,9 +32,9 @@ def replace_once(path, old, new, description):
     path.write_text(text.replace(old, new, 1))
 
 app = root / "src/App.vue"
-replace_once(app, "  @import './style/components';",
-             "  @import './style/components';\n  @import './style/farmwatch-theme';",
-             "App.vue theme import")
+replace_once(app, "</style>",
+             "  @import './style/farmwatch-theme';\n</style>",
+             "App.vue final theme import")
 text = app.read_text()
 text = text.replace("title: 'ArchiSteamFarm'", "title: 'FarmWatch'")
 text = text.replace("titleTemplate: 'ASF | %s'", "titleTemplate: 'FarmWatch | %s'")
