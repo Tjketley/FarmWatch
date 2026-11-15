@@ -179,12 +179,15 @@ internal static class FarmWatchStatisticsStore {
 		};
 	}
 
-	private static double OverlapSeconds(FarmingSession session, DateTime periodStart, DateTime periodEnd) {
-		DateTime sessionEnd = session.EndedAtUtc ?? periodEnd;
-		DateTime start = session.StartedAtUtc > periodStart ? session.StartedAtUtc : periodStart;
-		DateTime end = sessionEnd < periodEnd ? sessionEnd : periodEnd;
+	internal static double CalculateOverlapSeconds(DateTime startedAtUtc, DateTime? endedAtUtc, DateTime periodStartUtc, DateTime periodEndUtc) {
+		DateTime sessionEnd = endedAtUtc ?? periodEndUtc;
+		DateTime start = startedAtUtc > periodStartUtc ? startedAtUtc : periodStartUtc;
+		DateTime end = sessionEnd < periodEndUtc ? sessionEnd : periodEndUtc;
 		return Math.Max(0, (end - start).TotalSeconds);
 	}
+
+	private static double OverlapSeconds(FarmingSession session, DateTime periodStart, DateTime periodEnd) =>
+		CalculateOverlapSeconds(session.StartedAtUtc, session.EndedAtUtc, periodStart, periodEnd);
 
 	internal static object GetFarmingSummary() {
 		Initialize();
