@@ -42,10 +42,8 @@ routes = root / "src/router/routes.js"
 text = routes.read_text()
 needle = "  home: 'home',"
 assert needle in text, "ASF-ui route anchor changed"
-text = text.replace(needle, needle + "\n  farmWatch: 'farmwatch',
-  farmWatchAnalytics: 'farmwatch-analytics',
-  farmWatchSafety: 'farmwatch-safety',", 1)
-needle = "  {\n    path: '/bots',"
+addition = """\n  farmWatch: 'farmwatch',\n  farmWatchAnalytics: 'farmwatch-analytics',\n  farmWatchSafety: 'farmwatch-safety',"""
+text = text.replace(needle, needle + addition, 1)needle = "  {\n    path: '/bots',"
 assert needle in text, "ASF-ui bots route anchor changed"
 route = """  {
     path: '/farmwatch',
