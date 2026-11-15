@@ -129,6 +129,7 @@ internal static class ConnectUploader {
 		var statistics = new {
 			farmwatch_version = typeof(FreePackages).Assembly.GetName().Version?.ToString() ?? "unknown",
 			claim_summary = FarmWatchStatisticsStore.GetClaimSummary(),
+			farming_summary = FarmWatchStatisticsStore.GetFarmingSummary(),
 			global_auto_claim_enabled = FreePackages.FarmWatchAutoClaimEnabled,
 			observe_only = FreePackages.FarmWatchObserveOnly,
 			last_pics_change_number = FreePackages.GlobalCache?.LastChangeNumber ?? 0,
