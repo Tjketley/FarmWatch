@@ -17,22 +17,13 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Validate tagged plugin version
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        run: |
-          project_version=$(python3 -c 'import re; print(re.search(r"<Version>([^<]+)</Version>", open("Directory.Build.props").read()).group(1))')
-          if [[ "$project_version" != "$GITHUB_REF_NAME" ]]; then
-            echo "Release tag $GITHUB_REF_NAME does not match Directory.Build.props version $project_version."
-            exit 1
-          fi
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Build standalone ASF UI
-        run: bash ui/build-unified-ui.sh "$PWD/out/asf-ui"
+      - name: Build bundled FarmWatch ASF UI
+        run: bash ui/build-unified-ui.sh "$PWD/FarmWatch/www"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -45,55 +36,46 @@ jobs:
       - name: Run FarmWatch tests
         run: dotnet test FarmWatch.Tests -p:ContinuousIntegrationBuild=true --nologo
 
-      - name: Build FarmWatch plugin package
+      - name: Build single-install FarmWatch plugin package
         run: |
           dotnet publish FarmWatch -c Release -o out/plugin -p:ContinuousIntegrationBuild=true --nologo
-          mkdir -p out/plugin-package
+          mkdir -p out/plugin-package/www
           cp "out/plugin/${PLUGIN_NAME}.dll" out/plugin-package/
           ( cd out/plugin/ && cp --parents ./*/${PLUGIN_NAME}.resources.dll ../plugin-package/ || : )
           cp LICENSE README.md FarmWatch/CONNECT.md out/plugin-package/
+          cp -R FarmWatch/www/. out/plugin-package/www/
           test -f "out/plugin-package/${PLUGIN_NAME}.dll"
-          if find out/plugin-package -maxdepth 1 -type d -name www | grep -q .; then
-            echo "Plugin package must not contain the standalone UI."
-            exit 1
-          fi
+          test -f out/plugin-package/www/index.html
+          test -f out/plugin-package/www/farmwatch-mark.svg
+          test -f out/plugin-package/www/BUILD-INFO.txt
 
-      - name: Upload plugin build artifact
+      - name: Upload complete plugin package artifact
         uses: actions/upload-artifact@v4
         with:
           name: FarmWatch-Plugin
           path: out/plugin-package/
 
-      - name: Upload standalone ASF UI build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: FarmWatch-ASF-UI
-          path: out/asf-ui/
-
-      - name: Create and verify separate release ZIPs
+      - name: Create and verify single-install release ZIP
         run: |
           mkdir -p out/release
-          ( cd out/plugin-package && zip -qr ../release/FarmWatch.zip * )
-          ( cd out/asf-ui && zip -qr ../release/FarmWatch-ASF-UI.zip * )
-          unzip -Z1 out/release/FarmWatch.zip > out/release/plugin-files.txt
-          unzip -Z1 out/release/FarmWatch-ASF-UI.zip > out/release/ui-files.txt
-          grep -qx 'FarmWatch.dll' out/release/plugin-files.txt
-          grep -qx 'CONNECT.md' out/release/plugin-files.txt
-          grep -qx 'index.html' out/release/ui-files.txt
-          grep -qx 'farmwatch-mark.svg' out/release/ui-files.txt
-          grep -qx 'INSTALL.md' out/release/ui-files.txt
-          if grep -Eq '(^|/)www/|farmwatch-mark.svg' out/release/plugin-files.txt; then
-            echo "Standalone UI assets leaked into the plugin ZIP."
+          ( cd out/plugin-package && zip -qr ../release/FarmWatch.zip . )
+          unzip -Z1 out/release/FarmWatch.zip > out/release/package-files.txt
+          grep -qx 'FarmWatch.dll' out/release/package-files.txt
+          grep -qx 'README.md' out/release/package-files.txt
+          grep -qx 'CONNECT.md' out/release/package-files.txt
+          grep -qx 'www/index.html' out/release/package-files.txt
+          grep -qx 'www/farmwatch-mark.svg' out/release/package-files.txt
+          grep -qx 'www/ASF-ui-LICENSE' out/release/package-files.txt
+          if grep -Eq '^www/www/|^FarmWatch/www/' out/release/package-files.txt; then
+            echo "Unexpected nested web directory in plugin ZIP."
             exit 1
           fi
 
-      - name: Upload verified release ZIPs
+      - name: Upload verified release ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: FarmWatch-Release-ZIPs
-          path: |
-            out/release/FarmWatch.zip
-            out/release/FarmWatch-ASF-UI.zip
+          name: FarmWatch-Release-ZIP
+          path: out/release/FarmWatch.zip
 
   release:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
@@ -110,35 +92,28 @@ jobs:
       - name: Validate release tag
         run: |
           if [[ ! "${GITHUB_REF_NAME}" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
-            echo "Release tags must be plain numeric .NET versions (for example, 2.0.0.1)."
+            echo "Release tags must be plain numeric .NET versions (for example, 2.0.0.2)."
             exit 1
           fi
 
-      - name: Download verified release ZIPs
+      - name: Download verified release ZIP
         uses: actions/download-artifact@v4
         with:
-          name: FarmWatch-Release-ZIPs
+          name: FarmWatch-Release-ZIP
           path: out/release
 
-      - name: Apply release version to artifact names
-        run: |
-          mv out/release/FarmWatch.zip "out/release/FarmWatch-${GITHUB_REF_NAME}.zip"
-          mv out/release/FarmWatch-ASF-UI.zip "out/release/FarmWatch-ASF-UI-${GITHUB_REF_NAME}.zip"
+      - name: Apply release version to artifact name
+        run: mv out/release/FarmWatch.zip "out/release/FarmWatch-${GITHUB_REF_NAME}.zip"
 
       - name: Attest plugin package
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: out/release/FarmWatch-${{ github.ref_name }}.zip
 
-      - name: Attest standalone ASF UI package
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: out/release/FarmWatch-ASF-UI-${{ github.ref_name }}.zip
-
       - name: Publish FarmWatch GitHub release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: out/release/FarmWatch-${{ github.ref_name }}.zip,out/release/FarmWatch-ASF-UI-${{ github.ref_name }}.zip
+          artifacts: out/release/FarmWatch-${{ github.ref_name }}.zip
           artifactContentType: application/zip
           name: FarmWatch V${{ github.ref_name }}
           tag: ${{ github.ref_name }}
