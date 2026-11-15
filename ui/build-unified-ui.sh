@@ -111,3 +111,16 @@ cp "$WORK/LICENSE" "$OUTPUT/ASF-ui-LICENSE"
 printf '%s\n' "$ASF_UI_COMMIT" > "$OUTPUT/ASF-ui-UPSTREAM-COMMIT"
 test -f "$OUTPUT/index.html"
 test -f "$OUTPUT/farmwatch-mark.svg"
+cat > "$OUTPUT/INSTALL.md" <<'EOF'
+# FarmWatch ASF UI
+
+This is the standalone FarmWatch-branded ASF web interface built from the ASF-ui revision pinned to ASF 6.3.11.7.
+
+1. Stop ASF before replacing its web assets.
+2. Back up the existing ASF `www` directory.
+3. Extract the contents of this ZIP into ASF's `www` directory so that `index.html`, `scripts/`, `styles/`, `images/`, and `manifest.json` sit directly inside `www`.
+4. Start ASF and open the normal ASF web interface URL.
+5. Keep the FarmWatch plugin ZIP installed separately in ASF's plugin directory.
+
+This archive does not contain the FarmWatch plugin DLL. The plugin and UI ZIPs must be installed together from the same release version. ASF's native Bots, Commands, Releases, Plugins, Logs, configuration, authentication, restart and shutdown functions remain part of the upstream UI.
+EOF
