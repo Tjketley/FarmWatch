@@ -84,7 +84,7 @@ jobs:
 
   release:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-    needs: publish
+    needs: [publish, ui-skin]
     runs-on: ubuntu-latest
 
     permissions:
@@ -100,39 +100,61 @@ jobs:
         uses: actions/download-artifact@v4.1.7
         with:
           name: ${{ env.PLUGIN_NAME }}
-          path: out
+          path: out/plugin
+
+      - name: Download themed ASF web interface artifact
+        uses: actions/download-artifact@v4.1.7
+        with:
+          name: FarmWatch-ASF-ui
+          path: out/ui-dist
 
       - name: Validate ASF-compatible release tag
         run: |
-          if [[ ! "${GITHUB_REF_NAME}" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^[0-9]+(\\.[0-9]+){1,3}$ ]]; then
             echo "Release tags must be plain numeric .NET versions (for example, 2.0.0.1), without a leading v."
             exit 1
           fi
 
-      - name: Create and verify ASF plugin ZIP
+      - name: Create and verify release ZIPs
         run: |
-          cd out
-          7z a -tzip -mx7 ${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip *
-          unzip -Z1 ${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip > package-files.txt
-          grep -qx '${{ env.PLUGIN_NAME }}.dll' package-files.txt
-          grep -qx 'LICENSE' package-files.txt
-          grep -qx 'README.md' package-files.txt
-          grep -qx 'www/index.html' package-files.txt
-          grep -qx 'www/farmwatch-mark.svg' package-files.txt
-          if grep -q '^FarmWatch/' package-files.txt; then
+          mkdir -p out
+          test -f out/plugin/${{ env.PLUGIN_NAME }}.dll
+          test -f out/plugin/www/index.html
+          test -f out/ui-dist/index.html
+
+          ( cd out/plugin && 7z a -tzip -mx7 ../${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip * )
+          ( cd out/ui-dist && 7z a -tzip -mx7 "$GITHUB_WORKSPACE/out/FarmWatch-ASF-ui-${GITHUB_REF_NAME}.zip" * )
+
+          unzip -Z1 out/${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip > out/plugin-files.txt
+          grep -qx '${{ env.PLUGIN_NAME }}.dll' out/plugin-files.txt
+          grep -qx 'LICENSE' out/plugin-files.txt
+          grep -qx 'README.md' out/plugin-files.txt
+          grep -qx 'www/index.html' out/plugin-files.txt
+          grep -qx 'www/farmwatch-mark.svg' out/plugin-files.txt
+          if grep -q '^FarmWatch/' out/plugin-files.txt; then
             echo "Unexpected nested FarmWatch directory in plugin ZIP"
             exit 1
           fi
 
-      - name: Generate artifact attestation
+          unzip -Z1 out/FarmWatch-ASF-ui-${{ github.ref_name }}.zip > out/ui-files.txt
+          grep -qx 'index.html' out/ui-files.txt
+          test -s out/${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip
+          test -s out/FarmWatch-ASF-ui-${{ github.ref_name }}.zip
+
+      - name: Generate plugin artifact attestation
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: 'out/${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip'
 
+      - name: Generate themed ASF UI artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'out/FarmWatch-ASF-ui-${{ github.ref_name }}.zip'
+
       - name: Publish FarmWatch GitHub release
         uses: ncipollo/release-action@v1.13.0
         with:
-          artifacts: out/${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip
+          artifacts: out/${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip,out/FarmWatch-ASF-ui-${{ github.ref_name }}.zip
           artifactContentType: application/zip
           name: ${{ env.PLUGIN_NAME }} V${{ github.ref_name }}
           tag: ${{ github.ref_name }}
