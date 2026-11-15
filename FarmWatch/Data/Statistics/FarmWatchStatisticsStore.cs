@@ -40,8 +40,8 @@ internal static class FarmWatchStatisticsStore {
 		public string Bot { get; init; } = "";
 		public DateTime RecordedAtUtc { get; init; }
 		public string Source { get; init; } = "live_callback";
-		public uint ItemsSent { get; init; }
-		public uint ItemsReceived { get; init; }
+		public long ItemsSent { get; init; }
+		public long ItemsReceived { get; init; }
 	}
 
 	internal sealed class FarmingSession {
@@ -112,7 +112,7 @@ internal static class FarmWatchStatisticsStore {
 	}
 
 
-	internal static void RecordAcceptedTrade(string bot, ulong tradeOfferId, uint itemsSent, uint itemsReceived) {
+	internal static void RecordAcceptedTrade(string bot, ulong tradeOfferId, long itemsSent, long itemsReceived) {
 		if (string.IsNullOrEmpty(bot) || tradeOfferId == 0) return;
 		Initialize();
 		lock (Sync) {
