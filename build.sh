@@ -29,7 +29,7 @@ rm -rf ./out
 
 dotnet restore
 sync
-dotnet publish FreePackages -c "Release" -o "out/generic" "/p:LinkDuringPublish=false"
+dotnet publish FarmWatch -c "Release" -o "out/generic" "/p:LinkDuringPublish=false"
 mkdir -p "./out/$plugin_name"
 cp "./out/generic/$plugin_name.dll" "./out/$plugin_name"
 ( cd ./out/generic ; cp --parents ./*/"$plugin_name".resources.dll ../../out/"$plugin_name" || : )
