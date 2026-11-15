@@ -23,7 +23,7 @@ It is designed around one rule: **discover broadly, verify carefully, claim only
 - **Observe-only mode** — discovers and verifies eligible candidates without activating licences. This is the default operating mode.
 - **Optional per-bot claiming** — global and per-bot switches must all explicitly permit activation.
 - **Owned-game free DLC** — handled through a separate evidence path that requires a free DLC classification and a verified parent game already owned by that bot.
-- **ASF web dashboard** — view runtime status and manage global safety switches and per-bot auto-claim settings at `/FarmWatch`.
+- **Premium ASF web dashboard** — a separately packaged FarmWatch-branded ASF-ui distribution that preserves ASF's native bots, commands, logs, configuration and administration features, with FarmWatch overview, analytics, safety and diagnostics pages.
 - **Persistent settings** — FarmWatch-owned settings are stored separately in `config/FarmWatch.json`.
 - **ASF-native update support** — implements ASF's GitHub plugin update interface so ASF can discover published FarmWatch releases.
 - **Existing ASF workflows** — retains compatible legacy FreePackages configuration keys and commands during the transition.
@@ -54,13 +54,9 @@ Turning on a dashboard switch does not bypass these checks. Missing or invalid e
 
 ## Dashboard
 
-The FarmWatch page is served by ASF at:
+The FarmWatch dashboard is served by ASF's own web server at `/farmwatch`. It is distributed as a separate ASF UI ZIP alongside the FarmWatch plugin ZIP, both carrying the same release version. The UI is built from the ASF-ui revision pinned to ASF 6.3.11.7 and retains ASF's native interface routes and controls.
 
-`/FarmWatch`
-
-It provides a runtime overview, connection status for managed bots, global observe-only and auto-claim controls, and individual bot auto-claim switches. Changes are sent to ASF's authenticated API and saved in FarmWatch's own settings file.
-
-The dashboard is part of the plugin; it does not require a separate web server. Keep ASF's IPC/web interface protected and do not expose it directly to the public internet without appropriate secure access controls.
+FarmWatch's API remains inside the plugin and is accessed through ASF's authenticated IPC interface. The UI package does not add a separate web server, reverse tunnel or public control plane. Keep ASF's IPC/web interface protected and do not expose it directly to the public internet without appropriate secure access controls.
 
 ## Requirements
 
@@ -75,19 +71,20 @@ FarmWatch is being developed and tested against ASF-generic on 64-bit ARM Raspbe
 
 **No public release is available yet.** Once the first release is published, installation will be:
 
-1. Download the FarmWatch ZIP from the [GitHub Releases](https://github.com/Tjketley/FarmWatch-2/releases) page.
-2. Extract it into its own folder under ASF's `plugins` directory (for example, `plugins/FarmWatch/`).
-3. Restart ASF.
-4. Confirm the FarmWatch plugin loads in the ASF log.
-5. Open the ASF web interface and navigate to `/FarmWatch`.
+1. Download both `FarmWatch-<version>.zip` and `FarmWatch-ASF-UI-<version>.zip` from the same GitHub release.
+2. Extract the plugin ZIP into its own folder under ASF's `plugins` directory (for example, `plugins/FarmWatch/`).
+3. Stop ASF and back up its existing `www` directory.
+4. Extract the contents of the ASF UI ZIP into ASF's `www` directory so `index.html`, `scripts/`, `styles/`, and the other static assets sit directly inside `www`.
+5. Restart ASF, confirm the FarmWatch plugin loads, and open the normal ASF web interface URL.
+6. Select **FarmWatch** in the sidebar or navigate to `/farmwatch`.
 
 Do not replace or delete your existing ASF configuration, bot files, or databases during installation. FarmWatch keeps its own settings and per-bot cache separate.
 
 ## Updating
 
-FarmWatch implements ASF's `IGitHubPluginUpdates` integration and points to this repository. Once versioned GitHub releases are published with the expected ZIP asset, ASF's plugin update mechanism can discover and install updates according to the ASF update settings.
+FarmWatch implements ASF's `IGitHubPluginUpdates` integration and points to this repository. ASF's plugin update mechanism can discover the plugin release according to ASF update settings. The separately packaged ASF UI ZIP must be updated alongside the plugin ZIP from the same release; it is not installed by the plugin DLL's updater.
 
-The release workflow builds and packages the plugin when a version tag is pushed. **Automatic updating is not considered verified until a real update from one published release to a newer release has been tested on the target Raspberry Pi.** Until then, treat updates as a planned capability rather than a completed end-to-end test.
+The release workflow builds, tests and packages both ZIPs when a version tag is pushed. **Automatic updating is not considered verified until a real plugin update and matching UI replacement have been tested on the target Raspberry Pi.** Until then, treat updates as a planned capability rather than a completed end-to-end test.
 
 ## Configuration and compatibility
 
