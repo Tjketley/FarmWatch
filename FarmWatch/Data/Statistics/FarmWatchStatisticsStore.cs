@@ -198,7 +198,7 @@ internal static class FarmWatchStatisticsStore {
 				DateTime dayEnd = dayStart.AddDays(1) < now ? dayStart.AddDays(1) : now;
 				double farmingSeconds = FarmingSessions
 					.Where(item => item.StartedAtUtc < dayEnd && (item.EndedAtUtc ?? now) > dayStart)
-					.Sum(item => Math.Max(0, (Math.Min(item.EndedAtUtc ?? now, dayEnd) - (item.StartedAtUtc > dayStart ? item.StartedAtUtc : dayStart)).TotalSeconds));
+					.Sum(item => Math.Max(0, (((item.EndedAtUtc ?? now) < dayEnd ? (item.EndedAtUtc ?? now) : dayEnd) - (item.StartedAtUtc > dayStart ? item.StartedAtUtc : dayStart)).TotalSeconds));
 				return new {
 					date = dayStart.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
 					claims = Claims.Count(item => item.ClaimedAtUtc >= dayStart && item.ClaimedAtUtc < dayEnd),
