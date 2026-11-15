@@ -167,6 +167,7 @@ namespace FreePackages {
 			try {
 				response = await Bot.SteamApps.RequestFreeLicense(appID).ToLongRunningTask().ConfigureAwait(false);
 			} catch (Exception e) {
+				FarmWatchDiagnostics.Record("steam", $"Free-app licence request failed for app/{appID}.", Bot.BotName, "error", $"{e.GetType().Name}: {e.Message}");
 				Bot.ArchiLogger.LogGenericException(e);
 
 				return EResult.Timeout;
@@ -216,6 +217,7 @@ namespace FreePackages {
 			try {
 				(result, purchaseResult) = await Bot.Actions.AddFreeLicensePackage(subID).ConfigureAwait(false);
 			} catch (Exception e) {
+				FarmWatchDiagnostics.Record("steam", $"Free-package licence request failed for sub/{subID}.", Bot.BotName, "error", $"{e.GetType().Name}: {e.Message}");
 				Bot.ArchiLogger.LogGenericException(e);
 
 				return EResult.Invalid;
