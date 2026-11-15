@@ -1,604 +1,120 @@
-# FarmWatch for ArchiSteamFarm
+# FarmWatch
 
-FarmWatch is an ASF plugin based on the upstream Citrinate/FreePackages project. It retains the upstream Apache-2.0 licence and applicable attribution notices, with substantial FarmWatch safety, eligibility, and monitoring changes.
+**Steam Free-to-Keep monitoring and guarded licence claiming for ArchiSteamFarm.**
 
-The plugin's user-facing identity is FarmWatch. Legacy FreePackages configuration keys and commands remain supported for compatibility.
+FarmWatch watches Steam's Product Information and Change Service (PICS) for promotion changes, verifies whether a package is genuinely being offered as a permanent Free-to-Keep licence, and can optionally claim eligible promotions for selected ASF bots.
 
-## Auto-claim safety status
+It is designed around one rule: **discover broadly, verify carefully, claim only when every safety check agrees.**
 
-FarmWatch starts in **observe-only mode**. In this mode it discovers candidates, refreshes Steam PICS package metadata, applies the strict Free-to-Keep checks, records short-lived evidence, and logs verified candidates without activating any licence.
+<p align="center">
+  <strong>NEON GREEN · DEEP NAVY · FARMWATCH</strong><br>
+  <em>Independent ASF plugin · Raspberry Pi friendly · Open source</em>
+</p>
 
-To permit an activation, all of the following must be true:
+> **Development status:** FarmWatch is under active development. The ASF dashboard and settings API are being built and tested. A public release and end-to-end Raspberry Pi auto-update test have not yet been completed. Keep auto-claim disabled until the real-promotion test milestone is complete.
 
-- Global ASF setting `FarmWatchObserveOnly` is explicitly set to `false`.
-- Global ASF setting `FarmWatchAutoClaimEnabled` is explicitly set to `true`.
-- The individual bot setting `FarmWatchAutoClaimEnabled` is explicitly set to `true`.
-- The package passes the discovery checks and a fresh Steam PICS recheck immediately before activation.
-- Matching evidence is valid, unexpired, and no older than five minutes at the final gate.
+## What FarmWatch does
 
-Missing settings are fail-closed: observe-only defaults to **true**, and both auto-claim switches default to **false**. Playtests and direct AppID activations are never eligible for this Free-to-Keep path. The final gate also rejects missing, stale, malformed, or mismatched evidence.
+- **Promotion monitoring** — listens for Steam PICS changes and evaluates newly changed app and package metadata.
+- **Strict Free-to-Keep eligibility** — requires explicit Steam free-promotion evidence, NoCost billing, a SinglePurchase licence, one eligible game, and current availability.
+- **Fresh verification before claiming** — fetches package metadata again immediately before activation and requires matching, unexpired evidence no older than five minutes.
+- **Observe-only mode** — discovers and verifies eligible candidates without activating licences. This is the default operating mode.
+- **Optional per-bot claiming** — global and per-bot switches must all explicitly permit activation.
+- **Owned-game free DLC** — handled through a separate evidence path that requires a free DLC classification and a verified parent game already owned by that bot.
+- **ASF web dashboard** — view runtime status and manage global safety switches and per-bot auto-claim settings at `/FarmWatch`.
+- **Persistent settings** — FarmWatch-owned settings are stored separately in `config/FarmWatch.json`.
+- **ASF-native update support** — implements ASF's GitHub plugin update interface so ASF can discover published FarmWatch releases.
+- **Existing ASF workflows** — retains compatible legacy FreePackages configuration keys and commands during the transition.
 
-FarmWatch also has a separate owned-game free-DLC path: it only queues an app when Steam PICS identifies it as a free DLC app, its parent app ID is present and already owned by the bot account, and the app passes ASF's redeemability/country checks. The app metadata and parent ownership are rechecked immediately before activation. This path does not relax the base-game Free-to-Keep package rules; demos, playtests, F2P catalogue apps, paid DLC, and DLC without a verified owned parent remain ineligible. The two paths use distinct persisted evidence classifications: Free-to-Keep requires the `steam-pics-freepromotion` source plus permanent-licence confirmation, while owned-game DLC requires `steam-pics-free-dlc`, an explicit free-DLC classification, and a verified parent app ID. DLC evidence cannot satisfy a Free-to-Keep package queue entry, or vice versa.
+## Safety model
 
-The discovery adapter uses Steam PICS' explicit `extended.freepromotion` flag together with NoCost billing, SinglePurchase licensing, a single available non-F2P game, and current package availability. The package is fetched again immediately before activation; a candidate that no longer meets every check is rejected.
+FarmWatch is deliberately fail-closed.
 
-**Validation status:** the current work is still under development. Observe-only behaviour and policy tests are being added; real-world promotion fixtures and end-to-end tests are still required. Do not enable auto-claim or deploy this branch to a live ASF installation yet.
+| Control | Default | Purpose |
+|---|---:|---|
+| Observe-only | **On** | Monitor and verify without claiming |
+| Global auto-claim | **Off** | Master permission for automatic claims |
+| Per-bot auto-claim | **Off** | Explicit permission for each bot |
 
-No Steam credentials, cookies, session identifiers, or account library details are sent to the FarmWatch website. Website integration will use aggregate statistics only.
+A Free-to-Keep activation is permitted only when all of the following are true:
 
+1. Observe-only has explicitly been turned off.
+2. The global auto-claim master switch is enabled.
+3. The relevant bot's auto-claim switch is enabled.
+4. Steam metadata confirms a permanent, no-cost, single-purchase promotion for one eligible game.
+5. A fresh metadata recheck and current evidence pass the final activation gate.
 
-[![Check out my other ArchiSteamFarm plugins](https://img.shields.io/badge/Check%20out%20my%20other%20ArchiSteamFarm%20plugins-blue?logo=github)](https://github.com/stars/Citrinate/lists/archisteamfarm-plugins) [![Help with translations](https://img.shields.io/badge/Help%20with%20translations-purple?logo=crowdin)](/FreePackages/Localization/) ![GitHub all releases](https://img.shields.io/github/downloads/Citrinate/FreePackages/total?logo=github&label=Downloads)
+**Not eligible for the Free-to-Keep claim path:** free weekends, demos, playtests, temporary access, free-to-play catalogue apps, multi-app bundles, paid packages, and DLC giveaways presented as base-game promotions.
 
-## Introduction
+Free DLC for an already-owned game is a separate, narrowly verified path. Its evidence cannot be used to authorise a base-game Free-to-Keep claim.
 
-This plugin finds free packages on Steam and adds them to your account.
+Turning on a dashboard switch does not bypass these checks. Missing or invalid evidence means no claim.
 
-This plugin works by listening for [changes](https://steamdb.info/faq/#changenumber) to Steam's [PICS](https://steamdb.info/faq/#pics).  The plugin can discover new packages as they're released, but is limited due to PICS not showing all old changes.  As a result, the plugin can only discover packages that have changed recently, usually in the last ~12 hours.  To ensure that some of the more popular free packages aren't missed, the plugin also monitors certain free games subreddits (using [ASFinfo](https://github.com/C4illin/ASFinfo)).
+## Dashboard
+
+The FarmWatch page is served by ASF at:
+
+`/FarmWatch`
+
+It provides a runtime overview, connection status for managed bots, global observe-only and auto-claim controls, and individual bot auto-claim switches. Changes are sent to ASF's authenticated API and saved in FarmWatch's own settings file.
+
+The dashboard is part of the plugin; it does not require a separate web server. Keep ASF's IPC/web interface protected and do not expose it directly to the public internet without appropriate secure access controls.
+
+## Requirements
+
+- ArchiSteamFarm **6.3.11.7** (the current development target; later compatibility will be documented when tested).
+- A supported ASF installation with plugin support and its IPC/web interface enabled.
+- A Steam bot configured and connected in ASF.
+- .NET runtime requirements matching the ASF build you use.
+
+FarmWatch is being developed and tested against ASF-generic on 64-bit ARM Raspberry Pi OS as well as the CI build environment. Other ASF variants should be treated as unverified until tested.
 
 ## Installation
 
-- Download the .zip file of the [latest release](https://github.com/Citrinate/FreePackages/releases/latest)
-- Locate the `plugins` folder inside your ASF folder.  Create a new folder here (e.g., `FreePackages`) and unpack the downloaded .zip file to that folder.
-- (Re)start ASF. You should see a message indicating that the plugin loaded successfully.
+**No public release is available yet.** Once the first release is published, installation will be:
 
-> [!NOTE]
-> This plugin is only tested to work with ASF-generic.  It may or may not work with other ASF variants.  Nonetheless, feel free to report any issues you may encounter on other variants.
+1. Download the FarmWatch ZIP from the [GitHub Releases](https://github.com/Tjketley/FarmWatch-2/releases) page.
+2. Extract it into its own folder under ASF's `plugins` directory (for example, `plugins/FarmWatch/`).
+3. Restart ASF.
+4. Confirm the FarmWatch plugin loads in the ASF log.
+5. Open the ASF web interface and navigate to `/FarmWatch`.
 
-## Quick Start Guide
+Do not replace or delete your existing ASF configuration, bot files, or databases during installation. FarmWatch keeps its own settings and per-bot cache separate.
 
-All configuration is added to your existing `BotName.json` files found in the `config` folder inside your ASF folder.  Add the following lines to `BotName.json` to enable package redemption for that specific bot:
+## Updating
 
-```javascript
-"EnableFreePackages": true,
-"PauseFreePackagesWhilePlaying": true,
-```
+FarmWatch implements ASF's `IGitHubPluginUpdates` integration and points to this repository. Once versioned GitHub releases are published with the expected ZIP asset, ASF's plugin update mechanism can discover and install updates according to the ASF update settings.
 
-> [!IMPORTANT]
-> When adding new lines to your config files manually:
-> * Ensure the new lines are placed before the closing brace `}` at the end of the file
-> * Verify that the line above the new lines ends in a comma `,`
-> 
-> If your config file is not formatted correctly, ASF will produce JSON errors on startup and your bot will not run.
+The release workflow builds and packages the plugin when a version tag is pushed. **Automatic updating is not considered verified until a real update from one published release to a newer release has been tested on the target Raspberry Pi.** Until then, treat updates as a planned capability rather than a completed end-to-end test.
 
-By default, the plugin will redeem everything except for demos and playtests.  Filters may be used to add custom restrictions.  If you don't want all free packages, here's a generally useful filter you can add to `BotName.json` to tell the plugin to only redeem: 
+## Configuration and compatibility
 
-  - Limited-time only free games, and games that increase the games counter on your profile (`+1`)
-  - Games with trading cards
-  - Free DLC for your already owned games
+The dashboard is the intended user-facing place to manage FarmWatch's safety switches. Legacy FreePackages keys and commands remain in the code for compatibility with existing setups. They are not the preferred way to configure new FarmWatch installations.
 
-```json
-"FreePackagesFilters": [{
-  "NoCostOnly": true,
-},{
-  "Categories": [29],
-},{
-  "Types": ["DLC"],
-  "IgnoredTypes": ["Game", "Application"],
-}],
-```
+FarmWatch uses a separate `config/FarmWatch.json` file for its global and per-bot safety settings. Do not edit this file while ASF is running; use the dashboard so changes are validated, applied, and saved together.
 
-If you'd like to redeem absolutely everything, adding this filter to `BotName.json` tells the plugin to include demos and playtests (note: only 1 bot can be configured to join playtests):
+## Privacy
 
-```json
-"FreePackagesFilters": [{
-  "IgnoredTypes": [],
-  "PlaytestMode": 3,
-}],
-```
+FarmWatch uses Steam/ASF data needed to discover promotions, check package metadata, and verify ownership for the separate free-DLC path. The FarmWatch dashboard is hosted locally by ASF. It does not send Steam credentials, cookies, session identifiers, or account library details to a FarmWatch-operated website. Any future companion website integration is intended to use aggregate statistics only.
 
-After you're done editing your config files, (re)start ASF and use the `!qsa` command to see what the plugin is doing for your bots.
+## Development and validation
 
-Read on for detailed usage information.
+The repository includes automated tests for Free-to-Keep eligibility, activation policy, promotion evidence, and metadata fixtures. CI runs the test suite and builds the plugin package.
 
-## Usage
+Passing CI confirms the code builds and the automated tests pass; it does not replace testing against a live Steam promotion. The next validation milestones are:
 
-### Enabling the plugin
+- Complete a real-world genuine Free-to-Keep promotion test in observe-only mode.
+- Confirm exclusions for free weekends, demos, playtests, and temporary access.
+- Verify settings survive an ASF restart and apply correctly to each bot.
+- Publish a versioned release and test ASF-native updating on the Raspberry Pi.
+- Only then consider enabling automatic claims, with explicit user approval.
 
-You can enable the plugin per individual bot by adding `EnableFreePackages` to that bot's config file:
+## Project identity and upstream attribution
 
-```json
-"EnableFreePackages": true,
-```
+FarmWatch is an independent continuation and substantial modification of [Citrinate/FreePackages](https://github.com/Citrinate/FreePackages). The upstream project provided the starting point; FarmWatch adds its own branding, strict Free-to-Keep eligibility and evidence gates, safety controls, dashboard, and project direction.
 
----
+The project retains the applicable **Apache License 2.0** terms and upstream attribution. See [LICENSE](LICENSE).
 
-### Pausing package activations while playing a game
+## Contributing and support
 
-Under certain conditions, activating a free package while playing a game on Steam can cause the game to temporarily freeze.  You can prevent the plugin from activating packages while you're in-game by adding `PauseFreePackagesWhilePlaying` to your individual bot's config file.  It's recommended you use this for any account you play games on:
-
-```json
-"PauseFreePackagesWhilePlaying": true,
-```
-
-> [!NOTE]
-> This applies when your account is playing a game outside of ASF, and does not apply when ASF is idling a game.  Your library being locked through Family Sharing will also prevent package activation.  You likely don't want to enable this if you run idle games 24/7, or your library is otherwise almost always in use, or you only rarely run ASF.
-
----
-
-### Pausing package activations while farming cards
-
-When adding a new game to your account while ASF is farming cards, ASF will stop farming and re-evaluate what it wants to do next.  If you want to avoid these stops and restarts, then you can prevent the plugin from activating packages while ASF is farming cards by adding `PauseFreePackagesWhileFarming` to your individual bot's config file.
-
-```json
-"PauseFreePackagesWhileFarming": true,
-```
-
----
-
-### Changing the package limit
-
-A maximum of 30 packages can be activated per 1.5 hours.  By default, this plugin will use at most 25 of those activations and will resume where it left off if it's ever interrupted.  You can control this limit by adding `FreePackagesLimit` to your individual bot's config files of `uint` type:
-
-```json
-"FreePackagesLimit": 25,
-```
-
-> [!NOTE]
-> The default is intentionally made lower than the actual limit to allow for you the ability to manually redeem packages without having to fight with the plugin.
-
----
-
-### Enabling package filters
-
-By default, the plugin will attempt to activate all free non-demo and non-playtest packages.  You can control what kinds of packages are activated by adding `FreePackagesFilters` to your individual bot's config files with the following structure:
-
-```json
-"FreePackagesFilters": [{
-  "Types": [],
-  "Tags": [],
-  "Categories": [],
-  "Languages": [],
-  "Systems": [],
-  "MinReviewScore": 0,
-  "MaxDaysOld": 0,
-  "IgnoredContentDescriptors": [],
-  "IgnoredTypes": ["Demo"],
-  "IgnoredTags": [],
-  "IgnoredCategories": [],
-  "IgnoredAppIDs": [],
-  "RequireAllTags": false,
-  "RequireAllCategories": false,
-  "ImportStoreFilters": false,
-  "WishlistOnly": false,
-  "IgnoreFreeWeekends": false,
-  "NoCostOnly": false,
-  "PlaytestMode": 0,
-}],
-```
-
-All filter options are explained below:
-
----
-
-#### Types
-
-`HashSet<string>` type with default value of `[]`.  Packages must contain an app with one of the `TypeNames` specified here or they will not be added to your account.  You can leave this empty to allow for all types.  The available `TypeNames` for filtering are: `"Game"`, `"Application"`, `"Tool"`, `"Demo"`, `"DLC"`, `"Music"`, `"Video"`
-
----
-
-#### Tags
-
-`HashSet<uint>` type with default value of `[]`.  Packages must contain an app with at least one of these `TagIDs` or they will not be added to your account.  You can leave this empty to allow for all tags.  A list of tags can be found [here](https://steamdb.info/tags/).  The `TagID` will be at the end of the URL.  For example, the `TagID` for the [Indie](https://steamdb.info/tag/492/) tag is 492.
-
-> [!NOTE]
-> The "Profile Features Limited" tag presented by SteamDB is not a real tag that Steam uses.  This plugin does not detect whether or not an app has limited profile features.
-
----
-
-#### Categories
-
-`HashSet<uint>` type with default value of `[]`.  Packages must contain an app with at least one of these `CategoryIDs` or they will not be added to your account.  You can leave this empty to allow for all categories.
-
-<details>
-  <summary>List of Category IDs</summary>
-
-  Category ID | Description
-  --- | ---
-  1  | Multi-player
-  2  | Single-player
-  6  | Mods (require HL2)
-  7  | Mods (require HL1)
-  8  | Valve Anti-Cheat enabled
-  9  | Co-op
-  10 | Game demo
-  12 | HDR available
-  13 | Captions available
-  14 | Commentary available
-  15 | Stats
-  16 | Includes Source SDK
-  17 | Includes level editor
-  18 | Partial Controller Support
-  19 | Mods
-  20 | MMO
-  21 | Downloadable Content
-  22 | Steam Achievements
-  23 | Steam Cloud
-  24 | Shared/Split Screen
-  25 | Steam Leaderboards
-  27 | Cross-Platform Multiplayer
-  28 | Full controller support
-  29 | Steam Trading Cards
-  30 | Steam Workshop
-  32 | Steam Turn Notifications
-  33 | Native Steam Controller
-  35 | In-App Purchases
-  36 | Online PvP
-  37 | Shared/Split Screen PvP
-  38 | Online Co-op
-  39 | Shared/Split Screen Co-op
-  40 | SteamVR Collectibles
-  41 | Remote Play on Phone
-  42 | Remote Play on Tablet
-  43 | Remote Play on TV
-  44 | Remote Play Together
-  45 | Cloud Gaming
-  46 | Cloud Gaming (NVIDIA)
-  47 | LAN PvP
-  48 | LAN Co-op
-  49 | PvP
-  50 | Additional High-Quality Audio
-  51 | Steam China Workshop
-  52 | Tracked Controller Support
-  53 | VR Supported
-  54 | VR Only
-  55 | PS4 Controller Support
-  56 | PS4 Controller BT Support
-  57 | PS5 Controller BT Support
-  58 | PS5 Controller BT Support
-  59 | Steam Input API Supported
-  60 | Controller Preferred
-</details>
-
----
-
-#### Languages
-
-`HashSet<string>` type with default value of `[]`.  Packages must contain an app with support for at least one of these `LanguageIDs` or they will not be added to your account.  You can leave this empty to allow for all languages.
-
-<details>
-  <summary>List of Language IDs</summary>
-
-  Language ID | Language
-  --- | ---
-  `"afrikaans"` | Afrikaans
-  `"albanian"` | Albanian
-  `"amharic"` | Amharic
-  `"arabic"` | Arabic
-  `"armenian"` | Armenian
-  `"assamese"` | Assamese
-  `"azerbaijani"` | Azerbaijani
-  `"bangla"` | Bangla
-  `"basque"` | Basque
-  `"belarusian"` | Belarusian
-  `"bosnian"` | Bosnian
-  `"bulgarian"` | Bulgarian
-  `"catalan"` | Catalan
-  `"cherokee"` | Cherokee
-  `"croatian"` | Croatian
-  `"czech"` | Czech
-  `"danish"` | Danish
-  `"dari"` | Dari
-  `"dutch"` | Dutch
-  `"english"` | English
-  `"estonian"` | Estonian
-  `"filipino"` | Filipino
-  `"finnish"` | Finnish
-  `"french"` | French
-  `"galician"` | Galician
-  `"georgian"` | Georgian
-  `"german"` | German
-  `"greek"` | Greek
-  `"gujarati"` | Gujarati
-  `"hausa"` | Hausa
-  `"hebrew"` | Hebrew
-  `"hindi"` | Hindi
-  `"hungarian"` | Hungarian
-  `"icelandic"` | Icelandic
-  `"igbo"` | Igbo
-  `"irish"` | Irish
-  `"italian"` | Italian
-  `"japanese"` | Japanese
-  `"kannada"` | Kannada
-  `"kazakh"` | Kazakh
-  `"khmer"` | Khmer
-  `"kinyarwanda"` | Kinyarwanda
-  `"konkani"` | Konkani
-  `"koreana"` | Korean
-  `"kyrgyz"` | Kyrgyz
-  `"kiche"` | K'iche'
-  `"latvian"` | Latvian
-  `"lithuanian"` | Lithuanian
-  `"luxembourgish"` | Luxembourgish
-  `"macedonian"` | Macedonian
-  `"malay"` | Malay
-  `"malayalam"` | Malayalam
-  `"maltese"` | Maltese
-  `"maori"` | Maori
-  `"marathi"` | Marathi
-  `"mongolian"` | Mongolian
-  `"nepali"` | Nepali
-  `"norwegian"` | Norwegian
-  `"odia"` | Odia
-  `"persian"` | Persian
-  `"polish"` | Polish
-  `"portuguese"` | Portuguese - Portugal
-  `"gurmukhi"` | Punjabi (Gurmukhi)
-  `"shahmukhi"` | Punjabi (Shahmukhi)
-  `"quechua"` | Quechua
-  `"romanian"` | Romanian
-  `"russian"` | Russian
-  `"scots"` | Scots
-  `"serbian"` | Serbian
-  `"schinese"` | Simplified Chinese
-  `"sindhi"` | Sindhi
-  `"sinhala"` | Sinhala
-  `"slovak"` | Slovak
-  `"slovenian"` | Slovenian
-  `"sorani"` | Sorani
-  `"sotho"` | Sotho
-  `"latam"` | Spanish - Latin America
-  `"spanish"` | Spanish - Spain
-  `"swahili"` | Swahili
-  `"swedish"` | Swedish
-  `"tajik"` | Tajik
-  `"tamil"` | Tamil
-  `"tatar"` | Tatar
-  `"telugu"` | Telugu
-  `"thai"` | Thai
-  `"tigrinya"` | Tigrinya
-  `"tchinese"` | Traditional Chinese
-  `"tswana"` | Tswana
-  `"turkish"` | Turkish
-  `"turkmen"` | Turkmen
-  `"ukrainian"` | Ukrainian
-  `"urdu"` | Urdu
-  `"uyghur"` | Uyghur
-  `"uzbek"` | Uzbek
-  `"valencian"` | Valencian
-  `"vietnamese"` | Vietnamese
-  `"welsh"` | Welsh
-  `"wolof"` | Wolof
-  `"xhosa"` | Xhosa
-  `"yoruba"` | Yoruba
-  `"zulu"` | Zulu
-</details>
-
----
-
-#### Systems
-
-`HashSet<string>` type with default value of `[]`.  Packages must contain an app with support for one of the `SystemNames` specified here or they will not be added to your account.  You can leave this empty to allow for all systems.  The available `SystemNames` for filtering are: `"Windows"`, `"MacOS"`, `"Linux"`, `"DeckVerified"`, `"DeckPlayable"`, `"DeckUnsupported"`, `"DeckUnknown"`
-
----
-
-#### MinReviewScore
-
-`uint` type with default value of `0`.  Packages must contain an app with a `ReviewScore` greater than or equal to this or they will not be added to your account.  You can leave this at `0` to allow for all values.  A `ReviewScore` may range from 1 to 9 and is not the same as the percentage of positive reviews; it includes reviews in all languages, and its value may differ slightly from what you see on the Steam storefront.  Refer to the list below for more information.  This filter is not applied to demos or playtests as they can't normally be reviewed.
-
-<details>
-  <summary>List of Review Scores</summary>
-
-  Review Score | Description | # of Reviews | % of Positive Reviews 
-  --- | --- | --- | ---
-  1 | Overwhelmingly Negative | 500+ | 0%-19%
-  2 | Very Negative | 50-499 | 0%-19%
-  3 | Negative | 1-49 | 0%-19%
-  4 | Mostly Negative | - | 20%-39%
-  5 | Mixed | - | 40%-69%
-  6 | Mostly Positive | - | 70%-79%
-  7 | Positive | 1-49 | 80%-100%
-  8 | Very Positive | 50-499 | 80%-100%
-  8 | Very Positive | 500+ | 80%-94%
-  9 | Overwhelmingly Positive | 500+ | 95%-100%
-</details>
-
----
-
-#### MaxDaysOld
-
-`uint` type with default value of `0`.  Packages must contain an app which was released on Steam within the last `MaxDaysOld` days or they will not be added to your account.  You can leave this at `0` to not filter by release date.
-
----
-
-#### IgnoredContentDescriptors
-
-`HashSet<uint>` type with default value of `[]`.  Packages containing apps with any of the `ContentDescriptorIDs` specified here will not be added to your account.  Detailed information about content descriptors can be found [here](https://store.steampowered.com/account/preferences/) under "Mature Content Filtering".
-
-<details>
-  <summary>List of Content Descriptor IDs</summary>
-
-  Descriptor ID | Description
-  --- | ---
-  1 | Some Nudity or Sexual Content
-  2 | Frequent Violence or Gore
-  3 | Adult Only Sexual Content
-  4 | Frequent Nudity or Sexual Content
-  5 | General Mature Content
-</details>
-
----
-
-#### IgnoredTypes
-
-`HashSet<string>` type with default value of `["Demo"]`.  Packages containing apps with any of the `TypeNames` specified here will not be added to your account.  Refer to [Types](#types) for more information about `TypeNames`.
-
-> [!NOTE]
-> Demos are filtered out by default.  This is because Steam has at times removed all uninstalled demos from accounts.  If you'd like the plugin to activate demos, you can do so by setting `IgnoredTypes` to `[]`, or some other value that doesn't include `"Demo"`.
-
----
-
-#### IgnoredTags
-
-`HashSet<uint>` type with default value of `[]`.  Packages containing apps with any of these `TagIDs` will not be added to your account.  Refer to [Tags](#tags) for more information about `TagIDs`.
-
----
-
-#### IgnoredCategories
-
-`HashSet<uint>` type with default value of `[]`.  Packages containing apps with any of these `CategoryIDs` will not be added to your account.  Refer to [Categories](#categories) for more information about `CategoryIDs`.
-
----
-
-#### IgnoredAppIDs
-
-`HashSet<uint>` type with default value of `[]`.  Packages containing apps with any of these `AppIDs` will not be added to your account.
-
----
-
-#### RequireAllTags
-
-`bool` type with default value of `false`.  If set to `true`, packages must contain an app with **all** of the `TagIDs` specified in the [Tags](#tags) filter or they will not be added to your account.
-
----
-
-#### RequireAllCategories
-
-`bool` type with default value of `false`.  If set to `true`, packages must contain an app with **all** of the `CategoryIDs` specified in the [Categories](#categories) filter or they will not be added to your account.
-
----
-
-#### ImportStoreFilters
-
-`bool` type with default value of `false`.  If set to `true`, the filter will also use the ignored games, ignored tags, and ignored content descriptor settings you use on the Steam storefront.
-
----
-
-#### WishlistOnly
-
-`bool` type with default value of `false`.  If set to `true`, packages must contain an app your account has wishlisted or followed on the Steam storefront or they will not be added to your account.
-
----
-
-#### IgnoreFreeWeekends
-
-`bool` type with default value of `false`.  Free weekend packages will be ignored if set to `true`.
-
----
-
-#### NoCostOnly
-
-`bool` type with default value of `false`.  If set to `true`, only "No Cost" packages will be added to your account.  "No Cost" packages tend to be those which are free for only a limited time, and can also sometimes give a +1 to your owned games count.
-
----
-
-#### PlaytestMode
-
-`uint` type with default value of `0`.  Some or all playtests will be ignored based on the provided value.
-
-<details>
-  <summary>List of Playtest Modes</summary>
-
-  Playtest Modes | Description
-  --- | ---
-  0 | Ignore all playtests
-  1 | Include only unlimited playtests 
-  2 | Include only limited playtests
-  3 | Include all playtests
-</details>
-
-> [!NOTE]
-> Only one of your bots may use the `PlaytestMode` filter option.  As some playtests have a limited number of slots, this is an artificial restriction I've put in place to limit how many slots a single person can occupy.
-
-> [!NOTE]
-> If you use `PauseFreePackagesWhilePlaying`, be aware that when it comes to limited playtests, the plugin cannot control when the playtest package is added to your account.  When or if this happens is decided by the game's developer, and so it's possible that a package will be added to your account while you're playing a game.
-
----
-
-### Using multiple package filters
-
-You can define as many filters as you'd like, and packages that pass any one of your filters will be added to your account.  For example, with the four filters below we can allow for any of:
-
-  - Free games with Steam Trading Cards, but without nudity
-  - Free games or playtests which have English or French language support, and Puzzle or Programming tags
-  - Free DLC for games you own
-  - Games which are free for a limited time only
-
-```json
-"FreePackagesFilters": [{
-  "Types": ["Game"],
-  "Categories": [29],
-  "IgnoredContentDescriptors": [3, 4],
-},{
-  "Types": ["Game"],
-  "Tags": [1664, 5432],
-  "Languages": ["english", "french"],
-  "PlaytestMode": 3,
-},{
-  "Types": ["DLC"],
-  "IgnoredTypes": ["Game", "Application"],
-},{
-  "NoCostOnly": true,
-}],
-```
-
----
-
-### Importing packages
-
-While the plugin can be used passively, you can also manually import free packages from [SteamDB](https://steamdb.info/freepackages/) using [the importer userscript](/FreePackagesImporter/), or through the commands and [IPC interface](https://github.com/JustArchiNET/ArchiSteamFarm/wiki/IPC) endpoints below.
-
----
-
-### Activation Commands
-
-Command | Access | Description
---- | --- | ---
-`queuestatus [Bots]`|`Master`|Prints the status of the given bot's packages queue
-`queuelicense [Bots] <Licenses>`|`Master`|Adds given `licenses`, explained [here](https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Commands#licenses), to the given bot's packages queue.  Playtests cannot be added to the package queue using this command
-`queuelicense^ [Bots] <Licenses>`|`Master`|Adds given `licenses`, explained [here](https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Commands#licenses), to the given bot's packages queue using that bot's package filters
-`clearqueue [Bots]`|`Master`|Removes everything from the given bot's packages queue
-
-### Removal Commands
-
-Command | Access | Description
---- | --- | ---
-`removefreepackages [Bot]`|`Master`|Removes any free packages from the given bot's account that are unwanted by the bot's [package filters](#enabling-package-filters), and that have a "Remove" button on the [licenses page](https://store.steampowered.com/account/licenses/).  This won't remove any packages that used to be free, but currently aren't.  After this command is used, you'll be presented with a list of packages to review, edit, and then confirm the removal of
-`removefreepackages^ [Bot]`|`Master`|Like `removefreepackages`, but will also exclude for removal anything that has been played by the given bot
-`removeallfreepackages [Bot]`|`Master`|Removes all packages from the given bot's account that have a "Remove" button on the [licenses page](https://store.steampowered.com/account/licenses/).  After this command is used, you'll be presented with a list of packages to review, edit, and then confirm the removal of
-`removeallfreepackages^ [Bot]`|`Master`|Like `removeallfreepackages`, but will exclude for removal anything that has been played by the given bot
-`cancelremove [Bots]`|`Master`|Cancels any package removals
-`confirmremove [Bots]`|`Master`|Begins the process of removing unwanted free packages
-`dontremove [Bots] <Licenses>`|`Master`|Removes given `licenses` (explained [here](https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Commands#licenses)) from the list of packages about to be removed
-
-> [!IMPORTANT]
-> Some of the packages displayed during the removal process may not actually be removable, and the plugin will produce `InvalidParam` or `DuplicateRequest` errors when attempting to remove them.  These kinds of packages will appear in your licenses page (where they will also produce an error when attempting to remove them), but do not appear in the Steam client.
-
-### Other Commands
-
-Command | Access | Description
---- | --- | ---
-`freepackages`|`Master`|Prints version of plugin.
-
----
-
-#### Command Aliases
-
-Command | Alias |
---- | --- |
-`queuestatus`|`qstatus`
-`queuestatus asf`|`qsa`
-`queuelicense`|`queuelicence`, `qlicense`, `qlicence`
-`queuelicense^`|`queuelicence^`, `qlicense^`, `qlicence^`
-
----
-
-### IPC Interface
-
-API | Method | Parameters | Description
---- | --- | --- | ---
-`/Api/FreePackages/{botNames}/GetChangesSince/{changeNumber}`|`GET`| |Request changes for apps and packages since a given change number [^1]
-`/Api/FreePackages/{botName}/GetOwnedApps`|`GET`|`showDetails`|Retrieves all apps owned by the given bot
-`/Api/FreePackages/{botName}/GetOwnedPackages`|`GET`| |Retrieves all packages owned by the given bot
-`/Api/FreePackages/{botNames}/GetProductInfo`|`GET`|`appIDs`, `packageIDs`|Request product information for a list of apps or packages [^1]
-`/Api/FreePackages/{botNames}/QueueLicenses`|`POST`|`appIDs`, `packageIDs`, `useFilter`|Adds the given appIDs and packageIDs to the given bot's package queue
-`/Api/FreePackages/{botName}/RequestFreeAppLicense`|`POST`|`appIDs`|Request a free license for given appIDs
-`/Api/FreePackages/{botName}/RequestFreeSubLicense`|`POST`|`subID`|Request a free license for given subID
-
-[^1]: Responses are not dependent on the account used to make these requests.  You may provide multiple `botNames`, and the first available bot will be used to make the request.
-
-
-### Real-world PICS fixture
-
-The test suite includes a sanitized Steam PICS package record for **Fireside Feelings**, SubID **1825454**, observed during its October 2026 Free-to-Keep promotion. The fixture records `billingtype=0` (`NoCost`), `licensetype=1` (`SinglePurchase`), `status=0` (`Available`), `extended.freepromotion=1`, one app ID (2990600), and the observed start/expiry timestamps. Public references: [SteamDB package record](https://steamdb.info/sub/1825454/info/) and [published PICS console dump](https://github.com/P-Adamiec/Free-Games-Claimer-Remaster/issues/84).
-
-A separate historical Free Weekend fixture (SubID 81948) has `billingtype=12` (`FreeOnDemand`) and `freeweekend=1`. This is intentionally rejected. These examples show why the billing type must not be treated as the positive Free-to-Keep signal by itself: FarmWatch requires the explicit `freepromotion=1` flag and the remaining package/app checks.
+Please use the repository's [Issues](https://github.com/Tjketley/FarmWatch-2/issues) to report reproducible bugs or suggest improvements. Include your ASF version, FarmWatch version, relevant redacted logs, and steps to reproduce. Never post Steam credentials, access tokens, cookies, or other secrets.
