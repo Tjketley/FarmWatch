@@ -91,7 +91,7 @@ nav_addition = """
         <NavigationLink name="FarmWatch" icon="eye" :to="{ name: 'farmwatch' }"></NavigationLink>
         <NavigationLink name="Analytics" icon="chart-line" :to="{ name: 'farmwatch-analytics' }"></NavigationLink>
         <NavigationLink name="Safety & controls" icon="shield-alt" :to="{ name: 'farmwatch-safety' }"></NavigationLink>
-        <NavigationLink name="Diagnostics" icon="activity" :to="{ name: 'farmwatch-diagnostics' }"></NavigationLink>"""
+        <NavigationLink name="Diagnostics" icon="heartbeat" :to="{ name: 'farmwatch-diagnostics' }"></NavigationLink>"""
 nav.write_text(text.replace(nav_anchor, nav_anchor + nav_addition, 1))
 
 brand = root / "src/components/Navigation/Brand.vue"
