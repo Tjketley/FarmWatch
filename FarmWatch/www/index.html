@@ -136,7 +136,7 @@ async function load(){
   $('mode').textContent=data.observeOnly?'Observe only':'Claim mode';
   $('observeOnly').checked=!!data.observeOnly;$('globalAutoClaim').checked=!!data.globalAutoClaimEnabled;
   $('bots').innerHTML='';
-  if(!data.bots.length){$('bots').textContent='No FarmWatch-enabled bots are currently configured.';}
+  if(!data.bots.length){$('bots').textContent='No ASF bots are currently loaded. Add or load a bot in ASF, then refresh this page.';}
   for(const bot of data.bots){
    const row=document.createElement('div');row.className='bot';
    const name=document.createElement('strong');name.textContent=bot.name;
@@ -145,7 +145,27 @@ async function load(){
    const label=document.createElement('span');label.textContent=(bot.connected?'Connected':'Disconnected')+(bot.configured?' · FarmWatch ready':' · Not configured');
    const toggle=document.createElement('input');toggle.type='checkbox';toggle.checked=!!bot.autoClaimEnabled;toggle.disabled=!bot.configured;toggle.setAttribute('aria-label','Enable auto-claim for '+bot.name);
    toggle.addEventListener('change',async()=>{try{if(toggle.checked&&!confirm('Enable auto-claim for '+bot.name+'? Global auto-claim must also be enabled and observe-only must be off.')){toggle.checked=false;return;}await saveSettings({botName:bot.name,botAutoClaimEnabled:toggle.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});
-   const controls=document.createElement('span');controls.style.display='flex';controls.style.alignItems='center';controls.style.gap='10px';controls.append(label,toggle);
+   const controls=document.createElement('span');controls.style.display='flex';controls.style.alignItems='center';controls.style.gap='10px';controls.style.flexWrap='wrap';
+   controls.append(label);
+   if(!bot.configured){
+    const configure=document.createElement('button');configure.type='button';configure.textContent='Configure FarmWatch';
+    configure.setAttribute('aria-label','Configure FarmWatch for '+bot.name);
+    configure.addEventListener('click',async()=>{
+     configure.disabled=true;configure.textContent='Configuring…';
+     try{
+      const resultResponse=await fetch('/Api/FarmWatch/ConfigureBot/'+encodeURIComponent(bot.name),{method:'POST',credentials:'same-origin',headers:{'Accept':'application/json'}});
+      const result=await resultResponse.json().catch(()=>({}));
+      if(!resultResponse.ok)throw new Error(result.error||('ASF returned HTTP '+resultResponse.status));
+      $('saveMessage').textContent=result.message+' Auto-claim remains disabled.';
+      debugRecord('Configured FarmWatch for '+bot.name,result.message);
+      await load();
+     }catch(error){$('saveMessage').textContent='Could not configure '+bot.name+': '+error.message;debugRecord('Bot configuration failed',error.message);}
+     finally{configure.disabled=false;configure.textContent='Configure FarmWatch';}
+    });
+    controls.append(configure);
+   }else{
+    controls.append(toggle);
+   }
    state.append(dot,controls);row.append(name,state);$('bots').append(row);
   }
   $('updated').textContent='Updated '+new Date().toLocaleTimeString();
