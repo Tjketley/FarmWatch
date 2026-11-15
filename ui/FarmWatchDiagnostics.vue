@@ -65,9 +65,9 @@ export default {
   created() { this.refresh(); },
   beforeDestroy() { if (this.autoTimer) clearInterval(this.autoTimer); },
   methods: {
-    setAutoRefresh(enabled) {
+    setAutoRefresh() {
       if (this.autoTimer) { clearInterval(this.autoTimer); this.autoTimer = null; }
-      if (enabled) this.autoTimer = setInterval(() => this.refresh(), 15000);
+      if (this.autoRefresh) this.autoTimer = setInterval(() => this.refresh(), 15000);
     },
     async refresh() {
       this.loading = true; this.error = ''; this.message = '';
