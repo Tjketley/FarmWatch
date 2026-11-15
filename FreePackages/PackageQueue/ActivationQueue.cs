@@ -14,7 +14,7 @@ namespace FreePackages {
 		internal const uint MaxActivationsPerPeriod = 30; // Steam's imposed limit
 		internal const uint ActivationPeriodMinutes = 90; // Steam's imposed limit
 		internal readonly PackageFilter PackageFilter;
-		private readonly bool FarmWatchEnabled;
+		internal bool FarmWatchEnabled { get; set; }
 		protected override bool FarmWatchEnabledForBot => FarmWatchEnabled;
 		internal static readonly HashSet<EPackageType> ActivationTypes = [EPackageType.App, EPackageType.Sub, EPackageType.Playtest];
 		internal int ActivationsRemaining => BotCache.Packages.Where(x => ActivationTypes.Contains(x.Type)).Count();
