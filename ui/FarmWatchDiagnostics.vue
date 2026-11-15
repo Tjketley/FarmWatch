@@ -44,6 +44,17 @@
               <div class="fw-metric"><div class="fw-metric-label">Activations</div><div class="fw-metric-value">{{ bot.cache.activationsInCache }}</div></div>
             </div>
             <p class="fw-muted" style="font-size:.75rem;margin:.5rem 0 0">Queue: {{ bot.queueStatus || 'Unknown' }} · Filter ready: {{ bot.filterReady ? 'Yes' : 'No' }} · Bot enabled: {{ bot.botEnabled ? 'Yes' : 'No' }}</p>
+            <div class="fw-muted" style="font-size:.75rem;margin-top:.65rem">
+              <div>Pending app IDs: {{ (bot.pendingChanges.appIds || []).join(', ') || 'None' }}</div>
+              <div>Pending package IDs: {{ (bot.pendingChanges.packageIds || []).join(', ') || 'None' }}</div>
+            </div>
+            <div v-if="bot.queue && bot.queue.length" style="margin-top:.6rem">
+              <div class="fw-muted" style="font-size:.7rem;font-weight:700;margin-bottom:.25rem">Package queue (first {{ bot.queue.length }})</div>
+              <div v-for="(item,index) in bot.queue" :key="item.type + '-' + item.id + '-' + index" class="fw-row" style="font-size:.75rem">
+                <span>{{ item.type }} · {{ item.id }}</span>
+                <span>{{ item.filterHashPresent ? 'Filter hash ready' : 'No filter hash' }} · {{ item.hasCurrentClaimEvidence ? 'Evidence current' : 'Evidence pending' }}</span>
+              </div>
+            </div>
           </div>
         </div>
         <p v-else class="fw-muted">No configured FarmWatch handlers are available.</p>
