@@ -1,13 +1,11 @@
 name: FarmWatch CI and Release
-# Build, test, and package FarmWatch. Version tags publish ASF-compatible plugin releases.
-
 on:
   push:
   pull_request:
   workflow_dispatch:
 
 env:
-  PLUGIN_NAME: "FarmWatch"
+  PLUGIN_NAME: FarmWatch
   DOTNET_SDK_VERSION: 10.0
 
 jobs:
@@ -15,109 +13,113 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Setup Node.js for the unified ASF interface
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Build unified premium ASF and FarmWatch interface
-        run: bash ui/build-unified-ui.sh
+      - name: Build standalone ASF UI
+        run: bash ui/build-unified-ui.sh "$PWD/out/asf-ui"
 
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v4.0.0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
-      - name: Verify .NET Core
-        run: dotnet --info
-
-      - name: Prepare for publishing
+      - name: Restore
         run: dotnet restore
 
-      - name: Run FarmWatch automated tests
+      - name: Run FarmWatch tests
         run: dotnet test FarmWatch.Tests -p:ContinuousIntegrationBuild=true --nologo
 
-      - name: Build FarmWatch plugin
+      - name: Build FarmWatch plugin package
         run: |
-          dotnet publish FarmWatch -c "Release" -o "out/generic" -p:ContinuousIntegrationBuild=true --nologo
-          mkdir -p ./out/dist/${{ env.PLUGIN_NAME }}
-          cp ./out/generic/${{ env.PLUGIN_NAME }}.dll ./out/dist/${{ env.PLUGIN_NAME }}
-          ( cd ./out/generic/ ; cp --parents ./*/${{ env.PLUGIN_NAME }}.resources.dll ../dist/${{ env.PLUGIN_NAME }} || : )
-          cp LICENSE ./out/dist/${{ env.PLUGIN_NAME }}/LICENSE
-          cp README.md ./out/dist/${{ env.PLUGIN_NAME }}/README.md
-          cp -R FarmWatch/www ./out/dist/${{ env.PLUGIN_NAME }}/www
-          test -f ./out/dist/${{ env.PLUGIN_NAME }}/${{ env.PLUGIN_NAME }}.dll
-          test -f ./out/dist/${{ env.PLUGIN_NAME }}/www/index.html
-          test -f ./out/dist/${{ env.PLUGIN_NAME }}/www/farmwatch-mark.svg
+          dotnet publish FarmWatch -c Release -o out/plugin -p:ContinuousIntegrationBuild=true --nologo
+          mkdir -p out/plugin-package
+          cp "out/plugin/${PLUGIN_NAME}.dll" out/plugin-package/
+          ( cd out/plugin/ && cp --parents ./*/${PLUGIN_NAME}.resources.dll ../plugin-package/ || : )
+          cp LICENSE README.md out/plugin-package/
+          test -f "out/plugin-package/${PLUGIN_NAME}.dll"
+          if find out/plugin-package -maxdepth 1 -type d -name www | grep -q .; then
+            echo "Plugin package must not contain the standalone UI."
+            exit 1
+          fi
 
-      - name: Generate FarmWatch documentation
-        uses: docker://pandoc/core:3.1
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
         with:
-          args: --metadata title="${{ env.PLUGIN_NAME }}" --standalone --columns 2000 -f markdown -t html --embed-resources --standalone -c ./github-pandoc.css -o ./out/dist/${{ env.PLUGIN_NAME }}/README.html README.md
+          name: FarmWatch-Plugin
+          path: out/plugin-package/
 
-      - name: Upload FarmWatch package
-        uses: actions/upload-artifact@v4.0.0
+      - name: Upload standalone ASF UI artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.PLUGIN_NAME }}
-          path: out/dist/${{ env.PLUGIN_NAME }}
+          name: FarmWatch-ASF-UI
+          path: out/asf-ui/
 
   release:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     needs: publish
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
       attestations: write
       id-token: write
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4.1.1
-
-      - name: Download ${{ env.PLUGIN_NAME }} artifact
-        uses: actions/download-artifact@v4.1.7
-        with:
-          name: ${{ env.PLUGIN_NAME }}
-          path: out
-
-      - name: Validate ASF-compatible release tag
+      - name: Validate release tag
         run: |
           if [[ ! "${GITHUB_REF_NAME}" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
-            echo "Release tags must be plain numeric .NET versions (for example, 2.0.0.1), without a leading v."
+            echo "Release tags must be plain numeric .NET versions (for example, 2.0.0.1)."
             exit 1
           fi
 
-      - name: Create and verify ASF plugin ZIP
+      - name: Download plugin artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: FarmWatch-Plugin
+          path: out/plugin
+
+      - name: Download ASF UI artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: FarmWatch-ASF-UI
+          path: out/asf-ui
+
+      - name: Create and verify separate ZIP packages
         run: |
           cd out
-          7z a -tzip -mx7 ${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip *
-          unzip -Z1 ${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip > package-files.txt
-          grep -qx '${{ env.PLUGIN_NAME }}.dll' package-files.txt
-          grep -qx 'LICENSE' package-files.txt
-          grep -qx 'README.md' package-files.txt
-          grep -qx 'www/index.html' package-files.txt
-          grep -qx 'www/farmwatch-mark.svg' package-files.txt
-          if grep -q '^FarmWatch/' package-files.txt; then
-            echo "Unexpected nested FarmWatch directory in plugin ZIP"
+          7z a -tzip -mx7 "FarmWatch-${GITHUB_REF_NAME}.zip" plugin/*
+          7z a -tzip -mx7 "FarmWatch-ASF-UI-${GITHUB_REF_NAME}.zip" asf-ui/*
+          unzip -Z1 "FarmWatch-${GITHUB_REF_NAME}.zip" > plugin-files.txt
+          unzip -Z1 "FarmWatch-ASF-UI-${GITHUB_REF_NAME}.zip" > ui-files.txt
+          grep -qx 'FarmWatch.dll' plugin-files.txt
+          grep -qx 'index.html' ui-files.txt
+          grep -qx 'farmwatch-mark.svg' ui-files.txt
+          if grep -Eq '(^|/)www/|farmwatch-mark.svg' plugin-files.txt; then
+            echo "Standalone UI assets leaked into the plugin ZIP."
             exit 1
           fi
 
-      - name: Generate artifact attestation
+      - name: Attest plugin package
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: 'out/${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip'
+          subject-path: out/FarmWatch-${{ github.ref_name }}.zip
+
+      - name: Attest standalone ASF UI package
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: out/FarmWatch-ASF-UI-${{ github.ref_name }}.zip
 
       - name: Publish FarmWatch GitHub release
-        uses: ncipollo/release-action@v1.13.0
+        uses: ncipollo/release-action@v1
         with:
-          artifacts: out/${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip
+          artifacts: out/FarmWatch-${{ github.ref_name }}.zip,out/FarmWatch-ASF-UI-${{ github.ref_name }}.zip
           artifactContentType: application/zip
-          name: ${{ env.PLUGIN_NAME }} V${{ github.ref_name }}
+          name: FarmWatch V${{ github.ref_name }}
           tag: ${{ github.ref_name }}
           bodyFile: .github/RELEASE_TEMPLATE.md
           token: ${{ secrets.GITHUB_TOKEN }}
