@@ -48,9 +48,11 @@ FarmWatch sends the WatchFarm Connect v1 envelope:
 - `instance_id`: stable random identifier generated once and stored in FarmWatch settings
 - `recorded_at`: UTC timestamp
 - `statistics`: aggregate FarmWatch counters and state
-- `claims`: currently an empty array; claim history is deliberately not fabricated from activation counters
+- `claims`: reserved for the versioned event-history contract; detailed claim records remain local until the receiver supports package-vs-app claim types
 
-The current statistics payload includes plugin version, global auto-claim and observe-only flags, PICS change number, bot totals/connection/configuration counts, queue size, changed app/package counts, newly owned and seen package counts, ignored apps, waitlisted playtests, promotion evidence, activation-cache count and last activation time.
+The current statistics payload includes plugin version, global auto-claim and observe-only flags, PICS change number, bot totals/connection/configuration counts, queue size, changed app/package counts, newly owned and seen package counts, ignored apps, waitlisted playtests, promotion evidence, activation-cache count, last activation time and durable FarmWatch claim totals (Free-to-Keep packages, free-DLC apps, today and this month).
+
+Successful FarmWatch claims are also recorded locally in `FarmWatch.statistics.json`. This is a durable event ledger, separate from the short-lived activation rate-limit cache. It deduplicates by bot + claim type + target ID. The current ledger records successful claims made after this version is installed; it does not invent historical claims from ownership snapshots.
 
 No Steam credentials, Steam IDs, account names, bot names, filters, or raw diagnostics/event logs are uploaded.
 
