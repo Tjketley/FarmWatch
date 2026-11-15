@@ -27,6 +27,12 @@ namespace FreePackages {
 			ArgumentNullException.ThrowIfNull(newPluginVersion);
 			ArgumentNullException.ThrowIfNull(releaseAssets);
 
+			// The current plugin build is pinned to ASF 6.3.11.7. Do not offer an
+			// automatic update for an ASF API version that has not been validated.
+			if (!asfVersion.Equals(new Version(6, 3, 11, 7))) {
+				return Task.FromResult<ReleaseAsset?>(null);
+			}
+
 			string expectedAssetName = $"FarmWatch-{newPluginVersion}.zip";
 			ReleaseAsset? targetAsset = releaseAssets.FirstOrDefault(asset => asset.Name.Equals(expectedAssetName, StringComparison.OrdinalIgnoreCase));
 			return Task.FromResult(targetAsset);
