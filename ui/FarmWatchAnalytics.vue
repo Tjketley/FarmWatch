@@ -14,7 +14,7 @@
 
       <section class="fw-panel" style="margin-bottom:1rem">
         <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">
-          <div><h2 class="fw-panel-title">30-day activity</h2><p class="fw-muted" style="margin:0;font-size:.8rem">Daily claims, completed trades and farming time</p></div>
+          <div><h2 class="fw-panel-title">30-day activity</h2><p class="fw-muted" style="margin:0;font-size:.8rem">Daily claims, completed trades and farming time · reporting periods use UTC</p></div>
           <button class="btn btn-default btn-sm" @click="refresh">Refresh data</button>
         </div>
         <div class="fw-chart">
