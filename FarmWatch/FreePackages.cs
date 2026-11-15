@@ -26,7 +26,7 @@ namespace FreePackages {
 		internal static async Task InitializeGlobalCache() {
 			Task<GlobalCache> loadTask;
 			lock (GlobalCacheLock) {
-				GlobalCacheLoadTask ??= FreePackages.GlobalCache == null ? global::FreePackages.GlobalCache.CreateOrLoad() : Task.FromResult(FreePackages.GlobalCache);
+				GlobalCacheLoadTask ??= FreePackages.GlobalCache == null ? global::FreePackages.GlobalCache.CreateOrLoad() : Task.FromResult(FreePackages.GlobalCache!);
 				loadTask = GlobalCacheLoadTask;
 			}
 
