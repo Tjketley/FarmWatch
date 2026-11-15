@@ -1,13 +1,11 @@
 name: FarmWatch CI and Release
-# Build, test, and package FarmWatch. Version tags publish ASF-compatible plugin releases.
-
 on:
   push:
   pull_request:
   workflow_dispatch:
 
 env:
-  PLUGIN_NAME: "FarmWatch"
+  PLUGIN_NAME: FarmWatch
   DOTNET_SDK_VERSION: 10.0
 
 jobs:
@@ -15,101 +13,109 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v4.0.0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build bundled FarmWatch ASF UI
+        run: bash ui/build-unified-ui.sh "$PWD/FarmWatch/www"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
-      - name: Verify .NET Core
-        run: dotnet --info
-
-      - name: Prepare for publishing
+      - name: Restore
         run: dotnet restore
 
-      - name: Run FarmWatch automated tests
+      - name: Run FarmWatch tests
         run: dotnet test FarmWatch.Tests -p:ContinuousIntegrationBuild=true --nologo
 
-      - name: Build FarmWatch plugin
+      - name: Build single-install FarmWatch plugin package
         run: |
-          dotnet publish FarmWatch -c "Release" -o "out/generic" -p:ContinuousIntegrationBuild=true --nologo
-          mkdir -p ./out/dist/${{ env.PLUGIN_NAME }}
-          cp ./out/generic/${{ env.PLUGIN_NAME }}.dll ./out/dist/${{ env.PLUGIN_NAME }}
-          ( cd ./out/generic/ ; cp --parents ./*/${{ env.PLUGIN_NAME }}.resources.dll ../dist/${{ env.PLUGIN_NAME }} || : )
-          cp LICENSE ./out/dist/${{ env.PLUGIN_NAME }}/LICENSE
-          cp README.md ./out/dist/${{ env.PLUGIN_NAME }}/README.md
-          cp -R FarmWatch/www ./out/dist/${{ env.PLUGIN_NAME }}/www
-          test -f ./out/dist/${{ env.PLUGIN_NAME }}/${{ env.PLUGIN_NAME }}.dll
-          test -f ./out/dist/${{ env.PLUGIN_NAME }}/www/index.html
-          test -f ./out/dist/${{ env.PLUGIN_NAME }}/www/farmwatch-mark.svg
+          dotnet publish FarmWatch -c Release -o out/plugin -p:ContinuousIntegrationBuild=true --nologo
+          mkdir -p out/plugin-package/www
+          cp "out/plugin/${PLUGIN_NAME}.dll" out/plugin-package/
+          ( cd out/plugin/ && cp --parents ./*/${PLUGIN_NAME}.resources.dll ../plugin-package/ || : )
+          cp LICENSE README.md FarmWatch/CONNECT.md out/plugin-package/
+          cp -R FarmWatch/www/. out/plugin-package/www/
+          test -f "out/plugin-package/${PLUGIN_NAME}.dll"
+          test -f out/plugin-package/www/index.html
+          test -f out/plugin-package/www/farmwatch-mark.svg
+          test -f out/plugin-package/www/BUILD-INFO.txt
 
-      - name: Generate FarmWatch documentation
-        uses: docker://pandoc/core:3.1
+      - name: Upload complete plugin package artifact
+        uses: actions/upload-artifact@v4
         with:
-          args: --metadata title="${{ env.PLUGIN_NAME }}" --standalone --columns 2000 -f markdown -t html --embed-resources --standalone -c ./github-pandoc.css -o ./out/dist/${{ env.PLUGIN_NAME }}/README.html README.md
+          name: FarmWatch-Plugin
+          path: out/plugin-package/
 
-      - name: Upload FarmWatch package
-        uses: actions/upload-artifact@v4.0.0
+      - name: Create and verify single-install release ZIP
+        run: |
+          mkdir -p out/release
+          ( cd out/plugin-package && zip -qr ../release/FarmWatch.zip . )
+          unzip -Z1 out/release/FarmWatch.zip > out/release/package-files.txt
+          grep -qx 'FarmWatch.dll' out/release/package-files.txt
+          grep -qx 'README.md' out/release/package-files.txt
+          grep -qx 'CONNECT.md' out/release/package-files.txt
+          grep -qx 'www/index.html' out/release/package-files.txt
+          grep -qx 'www/farmwatch-mark.svg' out/release/package-files.txt
+          grep -qx 'www/ASF-ui-LICENSE' out/release/package-files.txt
+          if grep -Eq '^www/www/|^FarmWatch/www/' out/release/package-files.txt; then
+            echo "Unexpected nested web directory in plugin ZIP."
+            exit 1
+          fi
+
+      - name: Upload verified release ZIP
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.PLUGIN_NAME }}
-          path: out/dist/${{ env.PLUGIN_NAME }}
+          name: FarmWatch-Release-ZIP
+          path: out/release/FarmWatch.zip
 
   release:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     needs: publish
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
       attestations: write
       id-token: write
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4.1.1
+      - name: Checkout release metadata
+        uses: actions/checkout@v4
 
-      - name: Download ${{ env.PLUGIN_NAME }} artifact
-        uses: actions/download-artifact@v4.1.7
-        with:
-          name: ${{ env.PLUGIN_NAME }}
-          path: out
-
-      - name: Validate ASF-compatible release tag
+      - name: Validate release tag
         run: |
           if [[ ! "${GITHUB_REF_NAME}" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
-            echo "Release tags must be plain numeric .NET versions (for example, 2.0.0.1), without a leading v."
+            echo "Release tags must be plain numeric .NET versions (for example, 2.0.0.2)."
             exit 1
           fi
 
-      - name: Create and verify ASF plugin ZIP
-        run: |
-          cd out
-          7z a -tzip -mx7 ${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip *
-          unzip -Z1 ${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip > package-files.txt
-          grep -qx '${{ env.PLUGIN_NAME }}.dll' package-files.txt
-          grep -qx 'LICENSE' package-files.txt
-          grep -qx 'README.md' package-files.txt
-          grep -qx 'www/index.html' package-files.txt
-          grep -qx 'www/farmwatch-mark.svg' package-files.txt
-          if grep -q '^FarmWatch/' package-files.txt; then
-            echo "Unexpected nested FarmWatch directory in plugin ZIP"
-            exit 1
-          fi
+      - name: Download verified release ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: FarmWatch-Release-ZIP
+          path: out/release
 
-      - name: Generate artifact attestation
+      - name: Apply release version to artifact name
+        run: mv out/release/FarmWatch.zip "out/release/FarmWatch-${GITHUB_REF_NAME}.zip"
+
+      - name: Attest plugin package
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: 'out/${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip'
+          subject-path: out/release/FarmWatch-${{ github.ref_name }}.zip
 
       - name: Publish FarmWatch GitHub release
-        uses: ncipollo/release-action@v1.13.0
+        uses: ncipollo/release-action@v1
         with:
-          artifacts: out/${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip
+          artifacts: out/release/FarmWatch-${{ github.ref_name }}.zip
           artifactContentType: application/zip
-          name: ${{ env.PLUGIN_NAME }} V${{ github.ref_name }}
+          name: FarmWatch V${{ github.ref_name }}
           tag: ${{ github.ref_name }}
           bodyFile: .github/RELEASE_TEMPLATE.md
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Composition;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,16 +10,49 @@ using ArchiSteamFarm.Plugins.Interfaces;
 using SteamKit2;
 using System.Text.Json;
 using ArchiSteamFarm.Helpers.Json;
+using ArchiSteamFarm.Web.GitHub.Data;
 
 namespace FreePackages {
 	[Export(typeof(IPlugin))]
-	public sealed class FreePackages : IASF, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand2, IGitHubPluginUpdates, IWebInterface {
+	public sealed class FreePackages : IASF, IWebInterface, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand2, IGitHubPluginUpdates, IBotCardsFarmerInfo, IBotTradeOfferResults {
 		public string Name => "FarmWatch";
-		public string RepositoryName => "Tjketley/FarmWatch-2";
+		// ASF serves the bundled FarmWatch UI from this plugin folder and updates it with the plugin DLL.
 		public string PhysicalPath => "www";
-		public string WebPath => "/FarmWatch";
+		public string WebPath => "/";
+		public string RepositoryName => "Tjketley/FarmWatch-2";
 		public Version Version => typeof(FreePackages).Assembly.GetName().Version ?? new Version("0");
+
+		// Releases contain both the plugin and standalone ASF UI ZIP. Select the
+		// versioned plugin asset explicitly so ASF never tries to install the UI.
+		public Task<ReleaseAsset?> GetTargetReleaseAsset(Version asfVersion, string asfVariant, Version newPluginVersion, IReadOnlyCollection<ReleaseAsset> releaseAssets, CancellationToken cancellationToken = default) {
+			ArgumentNullException.ThrowIfNull(asfVersion);
+			ArgumentException.ThrowIfNullOrEmpty(asfVariant);
+			ArgumentNullException.ThrowIfNull(newPluginVersion);
+			ArgumentNullException.ThrowIfNull(releaseAssets);
+
+			// The current plugin build is pinned to ASF 6.3.11.7. Do not offer an
+			// automatic update for an ASF API version that has not been validated.
+			if (!asfVersion.Equals(new Version(6, 3, 11, 7))) {
+				return Task.FromResult<ReleaseAsset?>(null);
+			}
+
+			string expectedAssetName = $"FarmWatch-{newPluginVersion}.zip";
+			ReleaseAsset? targetAsset = releaseAssets.FirstOrDefault(asset => asset.Name.Equals(expectedAssetName, StringComparison.OrdinalIgnoreCase));
+			return Task.FromResult(targetAsset);
+		}
 		internal static GlobalCache? GlobalCache;
+		private static readonly object GlobalCacheLock = new();
+		private static Task<GlobalCache>? GlobalCacheLoadTask;
+
+		internal static async Task InitializeGlobalCache() {
+			Task<GlobalCache> loadTask;
+			lock (GlobalCacheLock) {
+				GlobalCacheLoadTask ??= FreePackages.GlobalCache == null ? global::FreePackages.GlobalCache.CreateOrLoad() : Task.FromResult(FreePackages.GlobalCache!);
+				loadTask = GlobalCacheLoadTask;
+			}
+
+			GlobalCache = await loadTask.ConfigureAwait(false);
+		}
 		// Global kill switch. Missing configuration is deliberately disabled.
 		internal static bool FarmWatchAutoClaimEnabled { get; private set; } = false;
 		// Observe-only is the safe default. Auto-claim requires an explicit opt-out plus both enable switches.
@@ -55,14 +89,15 @@ namespace FreePackages {
 			FarmWatchAutoClaimEnabled = FarmWatchSettings.Current.AutoClaimEnabled;
 			FarmWatchObserveOnly = FarmWatchSettings.Current.ObserveOnly;
 			FarmWatchDiagnostics.Initialize();
+			FarmWatchStatisticsStore.Initialize();
 
 			ASF.ArchiLogger.LogGenericInfo("FarmWatch auto-claim global switch : " + FarmWatchAutoClaimEnabled.ToString());
 			ASF.ArchiLogger.LogGenericInfo("FarmWatch observe-only mode : " + FarmWatchObserveOnly.ToString());
 			FarmWatchDiagnostics.Record("runtime", $"FarmWatch initialised. Version {typeof(FreePackages).Assembly.GetName().Version}; autoClaim={FarmWatchAutoClaimEnabled}; observeOnly={FarmWatchObserveOnly}.");
 
-			if (GlobalCache == null) {
-				GlobalCache = await GlobalCache.CreateOrLoad().ConfigureAwait(false);
-			}
+			await InitializeGlobalCache().ConfigureAwait(false);
+
+			await ConnectUploader.Initialize().ConfigureAwait(false);
 
 			CardApps.Update();
 			ASFInfo.Update();
@@ -145,13 +180,13 @@ namespace FreePackages {
 			return Task.FromResult(GlobalCache?.LastChangeNumber ?? 0);
 		}
 
-		public Task OnPICSChanges(uint currentChangeNumber, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> appChanges, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> packageChanges) {
+		public async Task OnPICSChanges(uint currentChangeNumber, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> appChanges, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> packageChanges) {
+			await InitializeGlobalCache().ConfigureAwait(false);
 			PICSHandler.OnPICSChanges(currentChangeNumber, appChanges, packageChanges);
-			
-			return Task.CompletedTask;
 		}
 
 		public async Task OnPICSChangesRestart(uint currentChangeNumber) {
+			await InitializeGlobalCache().ConfigureAwait(false);
 			await PICSHandler.OnPICSRestart(currentChangeNumber).ConfigureAwait(false);
 		}
 
@@ -163,6 +198,31 @@ namespace FreePackages {
 
 		public Task<IReadOnlyCollection<ClientMsgHandler>?> OnBotSteamHandlersInit(Bot bot) {
 			return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>(new List<ClientMsgHandler> { SteamHandler.AddHandler(bot) });
+		}
+
+		public Task OnBotFarmingStarted(Bot bot) {
+			FarmWatchStatisticsStore.RecordFarmingStarted(bot.BotName, bot.CardsFarmer.GamesToFarmReadOnly);
+			return Task.CompletedTask;
+		}
+
+		public Task OnBotFarmingStopped(Bot bot) {
+			FarmWatchStatisticsStore.RecordFarmingStopped(bot.BotName);
+			return Task.CompletedTask;
+		}
+
+		public Task OnBotFarmingFinished(Bot bot, bool farmedSomething) {
+			FarmWatchStatisticsStore.RecordFarmingStopped(bot.BotName);
+			return Task.CompletedTask;
+		}
+
+		public Task OnBotTradeOfferResults(Bot bot, IReadOnlyCollection<ArchiSteamFarm.Steam.Exchange.ParseTradeResult> tradeResults) {
+			foreach (ArchiSteamFarm.Steam.Exchange.ParseTradeResult result in tradeResults) {
+				if (result.Result != ArchiSteamFarm.Steam.Exchange.ParseTradeResult.EResult.Accepted || !result.Confirmed) continue;
+				long itemsSent = result.ItemsToGive?.Sum(item => item.Amount) ?? 0;
+				long itemsReceived = result.ItemsToReceive?.Sum(item => item.Amount) ?? 0;
+				FarmWatchStatisticsStore.RecordAcceptedTrade(bot.BotName, result.TradeOfferID, itemsSent, itemsReceived);
+			}
+			return Task.CompletedTask;
 		}
 
 		private static void OnLicenseList (Bot bot, SteamApps.LicenseListCallback callback) {
