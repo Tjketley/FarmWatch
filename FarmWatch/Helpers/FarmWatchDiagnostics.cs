@@ -36,7 +36,6 @@ internal static class FarmWatchDiagnostics {
 			AppDomain.CurrentDomain.UnhandledException += (_, args) => Record("crash", "Unhandled process exception.", level: "error", details: args.ExceptionObject?.ToString() ?? "No exception details supplied.");
 			TaskScheduler.UnobservedTaskException += (_, args) => {
 				Record("crash", "Unobserved task exception.", level: "error", details: args.Exception.ToString());
-				args.SetObserved();
 			};
 
 			try {
