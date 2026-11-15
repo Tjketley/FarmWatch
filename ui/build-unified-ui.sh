@@ -14,6 +14,7 @@ git -C "$WORK" checkout --detach "$ASF_UI_COMMIT"
 
 cp "$ROOT/ui/FarmWatchOverview.vue" "$WORK/src/views/FarmWatchOverview.vue"
 cp "$ROOT/ui/farmwatch-theme.scss" "$WORK/src/style/farmwatch-theme.scss"
+cp "$MARK_TMP" "$WORK/src/static/farmwatch-mark.svg"
 
 python3 - "$WORK" <<'PY'
 from pathlib import Path
@@ -26,6 +27,14 @@ needle = "  @import './style/components';"
 assert needle in text, "ASF-ui App.vue style import anchor changed"
 text = text.replace(needle, needle + "\n  @import './style/farmwatch-theme';", 1)
 app.write_text(text)
+
+# Rebrand browser metadata while retaining ASF's application internals.
+text = app.read_text().replace("title: 'ArchiSteamFarm'", "title: 'FarmWatch'").replace("titleTemplate: 'ASF | %s'", "titleTemplate: 'FarmWatch | %s'")
+app.write_text(text)
+
+html = root / "src/index.html"
+text = html.read_text().replace("<title>ASF</title>", "<title>FarmWatch</title>").replace('href="/images/logo.png"', 'href="/farmwatch-mark.svg"')
+html.write_text(text)
 
 routes = root / "src/router/routes.js"
 text = routes.read_text()
