@@ -29,6 +29,70 @@ public sealed class FarmWatchController : ArchiController {
 		});
 	}
 
+	[HttpGet("Diagnostics")]
+	[ProducesResponseType((int) HttpStatusCode.OK)]
+	public ActionResult<object> GetDiagnostics() {
+		var bots = PackageHandler.Handlers.Values
+			.OrderBy(handler => handler.Bot.BotName)
+			.Select(handler => {
+				var queuedPackages = handler.BotCache.Packages
+					.OrderBy(package => package.Type.ToString())
+					.ThenBy(package => package.ID)
+					.ToArray();
+				var recentActivations = handler.BotCache.Activations
+					.OrderByDescending(timestamp => timestamp)
+					.Take(10)
+					.ToArray();
+
+				return new {
+					name = handler.Bot.BotName,
+					connected = handler.Bot.IsConnectedAndLoggedOn,
+					botEnabled = handler.Bot.BotConfig.Enabled,
+					farmWatchAutoClaimEnabled = handler.FarmWatchEnabled,
+					filterReady = handler.PackageFilter.Ready,
+					queueStatus = handler.GetStatus(),
+					cache = new {
+						queuedPackages = queuedPackages.Length,
+						packagesByType = queuedPackages.GroupBy(package => package.Type.ToString()).Select(group => new { type = group.Key, count = group.Count() }).ToArray(),
+						changedApps = handler.BotCache.ChangedApps.Count,
+						changedPackages = handler.BotCache.ChangedPackages.Count,
+						newOwnedPackages = handler.BotCache.NewOwnedPackages.Count,
+						seenPackages = handler.BotCache.SeenPackages.Count,
+						ignoredApps = handler.BotCache.IgnoredApps.Count,
+						waitlistedPlaytests = handler.BotCache.WaitlistedPlaytests.Count,
+						promotionEvidence = handler.BotCache.PromotionEvidence.Count,
+						currentClaimEvidence = queuedPackages.Count(package => handler.BotCache.HasCurrentClaimEvidence(package)),
+						lastActivationUtc = recentActivations.FirstOrDefault() == default ? (DateTime?) null : recentActivations[0].ToUniversalTime(),
+						activationsInCache = handler.BotCache.Activations.Count
+					},
+					pendingChanges = new {
+						appIds = handler.BotCache.ChangedApps.OrderBy(id => id).Take(20).ToArray(),
+						packageIds = handler.BotCache.ChangedPackages.OrderBy(id => id).Take(20).ToArray()
+					},
+					queue = queuedPackages.Take(30).Select(package => new {
+						type = package.Type.ToString(),
+						id = package.ID,
+						filterHashPresent = package.FilterHash != null,
+						hasCurrentClaimEvidence = handler.BotCache.HasCurrentClaimEvidence(package)
+					}).ToArray()
+				};
+			})
+			.ToArray();
+
+		return Ok(new {
+			name = "FarmWatch",
+			version = typeof(FreePackages).Assembly.GetName().Version?.ToString() ?? "unknown",
+			generatedAtUtc = DateTime.UtcNow,
+			global = new {
+				autoClaimEnabled = FreePackages.FarmWatchAutoClaimEnabled,
+				observeOnly = FreePackages.FarmWatchObserveOnly,
+				lastPicsChangeNumber = FreePackages.GlobalCache?.LastChangeNumber ?? 0,
+				handlerCount = PackageHandler.Handlers.Count
+			},
+			bots
+		});
+	}
+
 	[HttpPost("Settings")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	[ProducesResponseType((int) HttpStatusCode.BadRequest)]
