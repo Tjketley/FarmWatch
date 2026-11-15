@@ -17,7 +17,7 @@ public sealed class FarmWatchController : ArchiController {
 	[HttpGet("Status")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	public ActionResult<object> GetStatus() {
-		var bots = Bot.Bots?.Values
+		var bots = Bot.BotsReadOnly?.Values
 			.OrderBy(bot => bot.BotName)
 			.Select(bot => {
 				bool configured = PackageHandler.Handlers.TryGetValue(bot.BotName, out PackageHandler? handler);
@@ -126,17 +126,17 @@ public sealed class FarmWatchController : ArchiController {
 		int unchanged = 0;
 		List<string> failed = new();
 
-		foreach (Bot bot in Bot.Bots?.Values.OrderBy(bot => bot.BotName) ?? Enumerable.Empty<Bot>()) {
+		foreach (Bot bot in Bot.BotsReadOnly?.Values.OrderBy(bot => bot.BotName) ?? Enumerable.Empty<Bot>()) {
 			string configPath = Bot.GetFilePath(bot.BotName, Bot.EFileType.Config);
 			string temporaryPath = configPath + ".farmwatch.tmp";
 
 			try {
-				if (!File.Exists(configPath)) {
+				if (!System.IO.File.Exists(configPath)) {
 					failed.Add(bot.BotName + ": config file not found");
 					continue;
 				}
 
-				JsonNode? parsed = JsonNode.Parse(await File.ReadAllTextAsync(configPath).ConfigureAwait(false));
+				JsonNode? parsed = JsonNode.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false));
 				if (parsed is not JsonObject config) {
 					failed.Add(bot.BotName + ": config JSON root is not an object");
 					continue;
@@ -157,12 +157,12 @@ public sealed class FarmWatchController : ArchiController {
 					continue;
 				}
 
-				await File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
-				File.Move(temporaryPath, configPath, true);
+				await System.IO.File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
+				System.IO.File.Move(temporaryPath, configPath, true);
 				configured++;
 				FarmWatchDiagnostics.Record("settings", "FarmWatch bot configuration added to bot JSON. Auto-claim remains disabled for this bot until explicitly enabled.", bot.BotName, "success");
 			} catch (Exception e) {
-				try { if (File.Exists(temporaryPath)) File.Delete(temporaryPath); } catch { }
+				try { if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath); } catch { }
 				failed.Add(bot.BotName + ": " + e.Message);
 				FarmWatchDiagnostics.Record("settings", "Could not update bot JSON for FarmWatch setup.", bot.BotName, "error", e.Message);
 			}
