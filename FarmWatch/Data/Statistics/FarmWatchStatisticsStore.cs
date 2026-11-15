@@ -76,7 +76,7 @@ internal static class FarmWatchStatisticsStore {
 				DateTime recoveredAtUtc = DateTime.UtcNow;
 				bool recoveredSessions = false;
 				foreach (FarmingSession session in FarmingSessions.Where(item => !item.EndedAtUtc.HasValue)) {
-					session.EndedAtUtc = recoveredAtUtc;
+					session.EndedAtUtc = recoveredAtUtc > session.StartedAtUtc ? recoveredAtUtc : session.StartedAtUtc;
 					recoveredSessions = true;
 				}
 				if (recoveredSessions) SaveFarmingLocked();
