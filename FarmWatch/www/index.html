@@ -24,7 +24,9 @@ button{background:#123b2b;color:var(--text);border:1px solid #087f4b;padding:9px
 <div class="metric"><span class="muted">Global auto-claim</span><strong id="global">—</strong></div>
 <div class="metric"><span class="muted">Operating mode</span><strong id="mode">—</strong></div>
 </div><p class="notice" style="margin:16px 0 0">Safety first: auto-claim is disabled by default. Observe-only mode monitors eligible promotions without requesting Steam licences.</p></section>
-<section class="panel"><h2>Managed bots</h2><div id="bots" class="muted">Loading bot status…</div></section>
+<section class="panel"><h2>Managed bots</h2>
+<div class="debug-toolbar" style="margin-bottom:12px"><button id="configureAllBots" type="button">Configure all bots</button><span class="muted">Adds the FarmWatch module settings to every loaded bot's JSON. Auto-claim stays disabled by default.</span></div>
+<div id="bots" class="muted">Loading bot status…</div></section>
 <section class="panel"><h2>Safety settings</h2>
 <div class="bot"><div><strong>Observe-only mode</strong><div class="muted">Monitor verified promotions without claiming licences. Keep enabled while testing.</div></div><input id="observeOnly" type="checkbox" checked></div>
 <div class="bot"><div><strong>Global auto-claim</strong><div class="muted">Master switch. Requires observe-only to be off and a bot switch enabled.</div></div><input id="globalAutoClaim" type="checkbox"></div>
@@ -140,8 +142,8 @@ async function load(){
    const name=document.createElement('strong');name.textContent=bot.name;
    const state=document.createElement('span');state.className='status';
    const dot=document.createElement('i');dot.className='dot'+(bot.connected?' on':'');
-   const label=document.createElement('span');label.textContent=bot.connected?'Connected':'Disconnected';
-   const toggle=document.createElement('input');toggle.type='checkbox';toggle.checked=!!bot.autoClaimEnabled;toggle.setAttribute('aria-label','Enable auto-claim for '+bot.name);
+   const label=document.createElement('span');label.textContent=(bot.connected?'Connected':'Disconnected')+(bot.configured?' · FarmWatch ready':' · Not configured');
+   const toggle=document.createElement('input');toggle.type='checkbox';toggle.checked=!!bot.autoClaimEnabled;toggle.disabled=!bot.configured;toggle.setAttribute('aria-label','Enable auto-claim for '+bot.name);
    toggle.addEventListener('change',async()=>{try{if(toggle.checked&&!confirm('Enable auto-claim for '+bot.name+'? Global auto-claim must also be enabled and observe-only must be off.')){toggle.checked=false;return;}await saveSettings({botName:bot.name,botAutoClaimEnabled:toggle.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});
    const controls=document.createElement('span');controls.style.display='flex';controls.style.alignItems='center';controls.style.gap='10px';controls.append(label,toggle);
    state.append(dot,controls);row.append(name,state);$('bots').append(row);
@@ -151,7 +153,22 @@ async function load(){
 }
 $('observeOnly').addEventListener('change',async e=>{try{if(!e.target.checked&&!confirm('Turn off observe-only mode? FarmWatch may claim verified Free-to-Keep promotions if both auto-claim switches are enabled.')){e.target.checked=true;return;}await saveSettings({observeOnly:e.target.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});
 $('globalAutoClaim').addEventListener('change',async e=>{try{if(e.target.checked&&!confirm('Enable the global auto-claim master switch? Individual bot switches must also be enabled.')){e.target.checked=false;return;}await saveSettings({autoClaimEnabled:e.target.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});
-$('refresh').addEventListener('click',load);
+
+$('configureAllBots').addEventListener('click',async()=>{
+ if(!confirm('Add the FarmWatch configuration entries to every loaded bot JSON? This enables the FarmWatch module for each bot, but leaves per-bot auto-claim disabled. The affected bots must be restarted before they appear as managed.'))return;
+ const button=$('configureAllBots');button.disabled=true;button.textContent='Configuring…';
+ try{
+  const response=await fetch('/Api/FarmWatch/ConfigureAllBots',{method:'POST',credentials:'same-origin',headers:{'Accept':'application/json'}});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(result.error||('ASF returned HTTP '+response.status));
+  const failures=(result.failed||[]);
+  $('saveMessage').textContent=result.message+' Configured: '+result.configured+', already configured: '+result.unchanged+', failed: '+failures.length+(failures.length?' — '+failures.join('; '):'');
+  debugRecord('POST /Api/FarmWatch/ConfigureAllBots','configured '+result.configured+', unchanged '+result.unchanged+', failed '+failures.length);
+  await load();
+ }catch(error){$('saveMessage').textContent='Could not configure bots: '+error.message;debugRecord('Bulk bot configuration failed',error.message);}
+ finally{button.disabled=false;button.textContent='Configure all bots';}
+});
+\n$('refresh').addEventListener('click',load);
 $('debugRefresh').addEventListener('click',loadDiagnostics);
 $('eventRefresh').addEventListener('click',loadBackendEvents);
 $('eventLevel').addEventListener('change',renderBackendEvents);
