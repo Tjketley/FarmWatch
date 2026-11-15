@@ -39,7 +39,7 @@ button{background:#123b2b;color:var(--text);border:1px solid #087f4b;padding:9px
 <div id="debugMessage" class="muted" role="status" style="margin-bottom:10px">Diagnostics have not been loaded.</div>
 <h2>Backend snapshot</h2><pre id="debugOutput" class="debug-output">Press “Refresh diagnostics” to inspect FarmWatch internals.</pre>
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px"><h2 style="margin:0">Backend event log</h2><div class="debug-toolbar"><select id="eventLevel" aria-label="Filter event severity"><option value="all">All events</option><option value="warning">Warnings</option><option value="error">Errors</option><option value="success">Success</option></select><button id="eventRefresh" type="button">Refresh events</button></div></div>
-<div class="debug-label" id="eventSummary" style="margin:8px 0">Recent backend decisions and Steam responses. Last 200 events, retained in memory (cleared when ASF restarts).</div>
+<div class="debug-label" id="eventSummary" style="margin:8px 0">Recent backend decisions, Steam responses and crash exceptions. Events are written to disk and restored after ASF restarts.</div>
 <div id="backendEvents" class="debug-log" style="max-height:420px"></div>
 <h2 style="margin-top:18px">Recent dashboard requests & errors</h2><div id="debugLog" class="debug-log">No requests recorded yet.</div>
 </section>
@@ -93,7 +93,7 @@ async function loadBackendEvents(){
   if(!response.ok)throw new Error('ASF returned HTTP '+response.status);
   const data=await response.json();
   latestBackendEvents=data.events||[];
-  $('eventSummary').textContent='Showing '+latestBackendEvents.length+' recent backend events. Up to 500 are retained in memory and cleared when ASF restarts.';
+  $('eventSummary').textContent='Showing '+latestBackendEvents.length+' recent backend events. Persistent JSONL log survives ASF restarts; up to 500 recent events are restored into the dashboard.';
   renderBackendEvents();
  }catch(error){
   debugRecord('Backend event log request failed',error.message);
