@@ -40,6 +40,21 @@ public sealed class FarmWatchController : ArchiController {
 			bots
 		});
 	}
+	[HttpGet("ConnectStatus")]
+	[ProducesResponseType((int) HttpStatusCode.OK)]
+	public ActionResult<object> GetConnectStatus() => Ok(ConnectUploader.GetStatus());
+
+	[HttpPost("Connect")]
+	[ProducesResponseType((int) HttpStatusCode.OK)]
+	[ProducesResponseType((int) HttpStatusCode.BadRequest)]
+	public async Task<ActionResult<object>> ConfigureConnect([FromBody] FarmWatchConnectRequest request) {
+		if (request == null) return BadRequest(new { error = "A Connect configuration is required." });
+		bool configured = await ConnectUploader.Configure(request.Enabled, request.Endpoint, request.Token).ConfigureAwait(false);
+		if (!configured) return BadRequest(new { error = "When enabling Connect, provide an HTTPS WordPress upload endpoint and a valid Bearer token." });
+		FarmWatchDiagnostics.Record("connect", request.Enabled ? "WatchFarm Connect uploader enabled." : "WatchFarm Connect uploader disabled.");
+		return Ok(new { status = ConnectUploader.GetStatus(), message = request.Enabled ? "Connect configured. The first statistics snapshot has been queued for upload." : "Connect uploader disabled. Pending uploads are retained locally." });
+	}
+
 	[HttpGet("Diagnostics")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	public ActionResult<object> GetDiagnostics() {
@@ -217,4 +232,10 @@ public sealed class FarmWatchSettingsRequest {
 	public bool? ObserveOnly { get; set; }
 	public string? BotName { get; set; }
 	public bool? BotAutoClaimEnabled { get; set; }
+}
+
+public sealed class FarmWatchConnectRequest {
+	public bool Enabled { get; set; }
+	public string? Endpoint { get; set; }
+	public string? Token { get; set; }
 }
