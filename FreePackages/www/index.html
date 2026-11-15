@@ -35,7 +35,11 @@ button{background:#123b2b;color:var(--text);border:1px solid #087f4b;padding:9px
 </main>
 <script>
 const $=id=>document.getElementById(id);
-async function saveSettings(payload){\n const response=await fetch('/Api/FarmWatch/Settings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});\n const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||('ASF returned HTTP '+response.status));$('saveMessage').textContent='Settings saved.';await load();\n}\nasync function load(){
+async function saveSettings(payload){
+ const response=await fetch('/Api/FarmWatch/Settings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});
+ const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||('ASF returned HTTP '+response.status));$('saveMessage').textContent='Settings saved.';await load();
+}
+async function load(){
  $('bots').textContent='Loading bot status…';
  try{
   const response=await fetch('/Api/FarmWatch/Status',{credentials:'same-origin',headers:{'Accept':'application/json'}});
@@ -43,7 +47,8 @@ async function saveSettings(payload){\n const response=await fetch('/Api/FarmWat
   const data=await response.json();
   $('version').textContent='v'+data.version;
   $('global').textContent=data.globalAutoClaimEnabled?'Enabled':'Disabled';
-  $('mode').textContent=data.observeOnly?'Observe only':'Claim mode';\n  $('observeOnly').checked=!!data.observeOnly;$('globalAutoClaim').checked=!!data.globalAutoClaimEnabled;
+  $('mode').textContent=data.observeOnly?'Observe only':'Claim mode';
+  $('observeOnly').checked=!!data.observeOnly;$('globalAutoClaim').checked=!!data.globalAutoClaimEnabled;
   $('bots').innerHTML='';
   if(!data.bots.length){$('bots').textContent='No FarmWatch-enabled bots are currently configured.';}
   for(const bot of data.bots){
@@ -60,5 +65,7 @@ async function saveSettings(payload){\n const response=await fetch('/Api/FarmWat
   $('updated').textContent='Updated '+new Date().toLocaleTimeString();
  }catch(error){$('bots').textContent='Could not load FarmWatch status: '+error.message;$('version').textContent='Status unavailable';}
 }
-$('observeOnly').addEventListener('change',async e=>{try{if(!e.target.checked&&!confirm('Turn off observe-only mode? FarmWatch may claim verified Free-to-Keep promotions if both auto-claim switches are enabled.')){e.target.checked=true;return;}await saveSettings({observeOnly:e.target.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});\n$('globalAutoClaim').addEventListener('change',async e=>{try{if(e.target.checked&&!confirm('Enable the global auto-claim master switch? Individual bot switches must also be enabled.')){e.target.checked=false;return;}await saveSettings({autoClaimEnabled:e.target.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});\n$('refresh').addEventListener('click',load);load();
+$('observeOnly').addEventListener('change',async e=>{try{if(!e.target.checked&&!confirm('Turn off observe-only mode? FarmWatch may claim verified Free-to-Keep promotions if both auto-claim switches are enabled.')){e.target.checked=true;return;}await saveSettings({observeOnly:e.target.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});
+$('globalAutoClaim').addEventListener('change',async e=>{try{if(e.target.checked&&!confirm('Enable the global auto-claim master switch? Individual bot switches must also be enabled.')){e.target.checked=false;return;}await saveSettings({autoClaimEnabled:e.target.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});
+$('refresh').addEventListener('click',load);load();
 </script></body></html>
