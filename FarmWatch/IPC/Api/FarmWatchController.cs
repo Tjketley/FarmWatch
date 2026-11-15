@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using ArchiSteamFarm.IPC.Controllers.Api;
+using ArchiSteamFarm.Steam;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FreePackages.IPC;
