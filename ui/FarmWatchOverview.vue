@@ -8,8 +8,8 @@
       <div class="fw-grid">
         <article class="fw-metric"><div class="fw-metric-label">Managed bots</div><div class="fw-metric-value">{{ botCount }}</div></article>
         <article class="fw-metric"><div class="fw-metric-label">Connected bots</div><div class="fw-metric-value">{{ connectedCount }}</div></article>
-        <article class="fw-metric"><div class="fw-metric-label">Games claimed</div><div class="fw-metric-value">{{ number(claims.totalClaims) }}</div></article>
-        <article class="fw-metric"><div class="fw-metric-label">Farming hours</div><div class="fw-metric-value">{{ hours(farming.totalSeconds) }}</div></article>
+        <article class="fw-metric"><div class="fw-metric-label">Games claimed</div><div class="fw-metric-value">{{ number(claims.total) }}</div></article>
+        <article class="fw-metric"><div class="fw-metric-label">Farming hours</div><div class="fw-metric-value">{{ hours(farming.lifetimeSeconds) }}</div></article>
       </div>
 
       <div class="fw-grid" style="grid-template-columns: minmax(0,1.5fr) minmax(260px,1fr)">
