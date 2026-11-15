@@ -21,6 +21,7 @@ cp "$ROOT/FarmWatch/www/farmwatch-mark.svg" "$WORK/src/static/farmwatch-mark.svg
 
 python3 - "$WORK" <<'PY'
 from pathlib import Path
+import json
 import sys
 
 root = Path(sys.argv[1])
@@ -45,7 +46,18 @@ text = html.read_text()
 text = text.replace("<title>ASF</title>", "<title>FarmWatch</title>")
 text = text.replace('href="/images/logo.png"', 'href="/farmwatch-mark.svg"')
 text = text.replace('${__BASE_PATH__}images/logo.png', '${__BASE_PATH__}farmwatch-mark.svg')
+text = text.replace('<meta charset="utf-8">', '<meta charset="utf-8">\\n    <meta name="description" content="FarmWatch — premium monitoring and safety controls for ArchiSteamFarm.">\\n    <meta name="theme-color" content="#0c141b">')
+text = text.replace('  <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600" rel="stylesheet">\\n', '')
 html.write_text(text)
+
+manifest = root / "src/static/manifest.json"
+manifest_data = json.loads(manifest.read_text())
+manifest_data["name"] = "FarmWatch"
+manifest_data["short_name"] = "FarmWatch"
+manifest_data["description"] = "FarmWatch web interface for ArchiSteamFarm"
+manifest_data["icons"] = [{"src": "farmwatch-mark.svg", "sizes": "any", "type": "image/svg+xml"}]
+manifest_data["background_color"] = "#0c141b"
+manifest.write_text(json.dumps(manifest_data, indent=2) + "\\n")
 
 routes = root / "src/router/routes.js"
 text = routes.read_text()
