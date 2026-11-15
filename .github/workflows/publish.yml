@@ -41,6 +41,7 @@ jobs:
           ( cd ./out/generic/ ; cp --parents ./*/${{ env.PLUGIN_NAME }}.resources.dll ../dist/${{ env.PLUGIN_NAME }} || : )
           cp LICENSE ./out/dist/${{ env.PLUGIN_NAME }}/LICENSE
           cp README.md ./out/dist/${{ env.PLUGIN_NAME }}/README.md
+          cp -R FreePackages/www ./out/dist/${{ env.PLUGIN_NAME }}/www
 
       - name: Create README
         uses: docker://pandoc/core:3.1
