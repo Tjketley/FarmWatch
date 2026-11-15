@@ -57,6 +57,7 @@ namespace FreePackages {
 
 			ASF.ArchiLogger.LogGenericInfo("FarmWatch auto-claim global switch : " + FarmWatchAutoClaimEnabled.ToString());
 			ASF.ArchiLogger.LogGenericInfo("FarmWatch observe-only mode : " + FarmWatchObserveOnly.ToString());
+			FarmWatchDiagnostics.Record("runtime", $"FarmWatch initialised. Version {typeof(FreePackages).Assembly.GetName().Version}; autoClaim={FarmWatchAutoClaimEnabled}; observeOnly={FarmWatchObserveOnly}.");
 
 			if (GlobalCache == null) {
 				GlobalCache = await GlobalCache.CreateOrLoad().ConfigureAwait(false);
