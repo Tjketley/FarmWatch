@@ -7,6 +7,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORK="${RUNNER_TEMP:-/tmp}/farmwatch-asf-ui"
 
 rm -rf "$WORK"
+MARK_TMP="$ROOT/FarmWatch/farmwatch-mark.svg"
+cp "$ROOT/FarmWatch/www/farmwatch-mark.svg" "$MARK_TMP"
 git clone --filter=blob:none https://github.com/JustArchiNET/ASF-ui.git "$WORK"
 git -C "$WORK" checkout --detach "$ASF_UI_COMMIT"
 
@@ -53,13 +55,11 @@ cd "$WORK"
 npm ci --no-audit --no-fund
 npm run build
 
+rm -rf "$ROOT/FarmWatch/www"
 mkdir -p "$ROOT/FarmWatch/www"
 cp -R dist/. "$ROOT/FarmWatch/www/"
-# Retain FarmWatch's own mark in the root package.
-if [ -f "$ROOT/FarmWatch/www/farmwatch-mark.svg" ]; then
-  :
-else
-  cp "$ROOT/FarmWatch/www/farmwatch-mark.svg" "$ROOT/FarmWatch/www/farmwatch-mark.svg" 2>/dev/null || true
-fi
+# Retain FarmWatch's own mark alongside the ASF-ui static assets.
+cp "$MARK_TMP" "$ROOT/FarmWatch/www/farmwatch-mark.svg"
+rm -f "$MARK_TMP"
 cp "$WORK/LICENSE" "$ROOT/FarmWatch/www/ASF-ui-LICENSE"
 printf '%s\n' "$ASF_UI_COMMIT" > "$ROOT/FarmWatch/www/ASF-ui-UPSTREAM-COMMIT"
