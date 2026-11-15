@@ -7,7 +7,7 @@
 <style>
 :root{color-scheme:dark;--bg:#101317;--panel:#191f25;--line:#2b343d;--text:#edf2f5;--muted:#9aa8b3;--accent:#00e676;--accent-soft:#123b2b;--warn:#e4bd72}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:900px;margin:0 auto;padding:38px 22px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:22px}
+main{max-width:900px;margin:0 auto;padding:38px 22px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:22px}.brand{display:flex;align-items:center;gap:14px}.brand img{width:58px;height:58px;border-radius:12px;border:1px solid var(--line)}
 h1{font-size:28px;letter-spacing:-.04em;margin:0;color:var(--accent)}h2{font-size:16px;margin:0 0 14px}.sub,.muted{color:var(--muted)}.version{font:12px ui-monospace,monospace;color:var(--muted)}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-top:18px}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.metric{padding:15px;border:1px solid var(--line);border-radius:9px}.metric strong{display:block;font-size:19px;margin-top:5px}
@@ -19,7 +19,7 @@ button{background:#123b2b;color:var(--text);border:1px solid #087f4b;padding:9px
 </style>
 </head>
 <body><main>
-<header class="top"><div><h1>FarmWatch</h1><div class="sub">Steam promotion monitoring for ArchiSteamFarm</div></div><div class="version" id="version">Loading…</div></header>
+<header class="top"><div class="brand"><img src="farmwatch-mark.svg" alt="FarmWatch eye and shield logo"><div><h1>FarmWatch</h1><div class="sub">Steam promotion monitoring for ArchiSteamFarm</div></div></div><div class="version" id="version">Loading…</div></header>
 <section class="panel"><h2>Runtime overview</h2><div class="grid">
 <div class="metric"><span class="muted">Global auto-claim</span><strong id="global">—</strong></div>
 <div class="metric"><span class="muted">Operating mode</span><strong id="mode">—</strong></div>
