@@ -20,6 +20,18 @@ namespace FreePackages {
 		public string WebPath => "/FarmWatch";
 		public Version Version => typeof(FreePackages).Assembly.GetName().Version ?? new Version("0");
 		internal static GlobalCache? GlobalCache;
+		private static readonly object GlobalCacheLock = new();
+		private static Task<GlobalCache>? GlobalCacheLoadTask;
+
+		internal static async Task InitializeGlobalCache() {
+			Task<GlobalCache> loadTask;
+			lock (GlobalCacheLock) {
+				GlobalCacheLoadTask ??= FreePackages.GlobalCache == null ? Data.Cache.GlobalCache.CreateOrLoad() : Task.FromResult(FreePackages.GlobalCache);
+				loadTask = GlobalCacheLoadTask;
+			}
+
+			GlobalCache = await loadTask.ConfigureAwait(false);
+		}
 		// Global kill switch. Missing configuration is deliberately disabled.
 		internal static bool FarmWatchAutoClaimEnabled { get; private set; } = false;
 		// Observe-only is the safe default. Auto-claim requires an explicit opt-out plus both enable switches.
@@ -62,9 +74,7 @@ namespace FreePackages {
 			ASF.ArchiLogger.LogGenericInfo("FarmWatch observe-only mode : " + FarmWatchObserveOnly.ToString());
 			FarmWatchDiagnostics.Record("runtime", $"FarmWatch initialised. Version {typeof(FreePackages).Assembly.GetName().Version}; autoClaim={FarmWatchAutoClaimEnabled}; observeOnly={FarmWatchObserveOnly}.");
 
-			if (GlobalCache == null) {
-				GlobalCache = await GlobalCache.CreateOrLoad().ConfigureAwait(false);
-			}
+			await InitializeGlobalCache().ConfigureAwait(false);
 
 			await ConnectUploader.Initialize().ConfigureAwait(false);
 
@@ -149,13 +159,13 @@ namespace FreePackages {
 			return Task.FromResult(GlobalCache?.LastChangeNumber ?? 0);
 		}
 
-		public Task OnPICSChanges(uint currentChangeNumber, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> appChanges, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> packageChanges) {
+		public async Task OnPICSChanges(uint currentChangeNumber, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> appChanges, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> packageChanges) {
+			await InitializeGlobalCache().ConfigureAwait(false);
 			PICSHandler.OnPICSChanges(currentChangeNumber, appChanges, packageChanges);
-			
-			return Task.CompletedTask;
 		}
 
 		public async Task OnPICSChangesRestart(uint currentChangeNumber) {
+			await InitializeGlobalCache().ConfigureAwait(false);
 			await PICSHandler.OnPICSRestart(currentChangeNumber).ConfigureAwait(false);
 		}
 
