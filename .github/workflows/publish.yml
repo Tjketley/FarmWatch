@@ -42,6 +42,9 @@ jobs:
           cp LICENSE ./out/dist/${{ env.PLUGIN_NAME }}/LICENSE
           cp README.md ./out/dist/${{ env.PLUGIN_NAME }}/README.md
           cp -R FreePackages/www ./out/dist/${{ env.PLUGIN_NAME }}/www
+          test -f ./out/dist/${{ env.PLUGIN_NAME }}/${{ env.PLUGIN_NAME }}.dll
+          test -f ./out/dist/${{ env.PLUGIN_NAME }}/www/index.html
+          test -f ./out/dist/${{ env.PLUGIN_NAME }}/www/farmwatch-mark.svg
 
       - name: Generate FarmWatch documentation
         uses: docker://pandoc/core:3.1
@@ -74,10 +77,21 @@ jobs:
           name: ${{ env.PLUGIN_NAME }}
           path: out
 
-      - name: Create Zip
+      - name: Create and verify ASF plugin ZIP
         run: |
-          cd out
-          7z a -tzip -mx7 ${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip *
+          cd out/${{ env.PLUGIN_NAME }}
+          7z a -tzip -mx7 ../${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip *
+          cd ..
+          unzip -Z1 ${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip > package-files.txt
+          grep -qx '${{ env.PLUGIN_NAME }}.dll' package-files.txt
+          grep -qx 'LICENSE' package-files.txt
+          grep -qx 'README.md' package-files.txt
+          grep -qx 'www/index.html' package-files.txt
+          grep -qx 'www/farmwatch-mark.svg' package-files.txt
+          if grep -q '^FarmWatch/' package-files.txt; then
+            echo "Unexpected nested FarmWatch directory in plugin ZIP"
+            exit 1
+          fi
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
