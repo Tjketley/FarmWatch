@@ -1,8 +1,8 @@
-# Free Packages Plugin for ArchiSteamFarm
+# FarmWatch for ArchiSteamFarm
 
-# FarmWatch safety layer (fork)
+FarmWatch is an ASF plugin based on the upstream Citrinate/FreePackages project. It retains the upstream Apache-2.0 licence and applicable attribution notices, with substantial FarmWatch safety, eligibility, and monitoring changes.
 
-This fork retains the upstream FreePackages implementation and Apache-2.0 attribution, with a FarmWatch safety layer being developed on top.
+The plugin's user-facing identity is FarmWatch. Legacy FreePackages configuration keys and commands remain supported for compatibility.
 
 ## Auto-claim safety status
 
