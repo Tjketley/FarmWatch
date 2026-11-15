@@ -103,3 +103,20 @@ td, th { border-color: var(--fw-border) !important; }
 .fw-status::before { content: ""; width: .45rem; height: .45rem; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px var(--fw-accent-soft); }
 @media (max-width: 1100px) { .fw-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 @media (max-width: 600px) { .fw-grid { grid-template-columns: 1fr 1fr; gap: .65rem; } .fw-metric { padding: .85rem; } .fw-metric-value { font-size: 1.45rem; } }
+
+.fw-chart { display:flex; align-items:stretch; gap:3px; height:190px; margin-top:1.4rem; padding:.5rem 0 0; border-bottom:1px solid var(--fw-border); overflow:hidden; }
+.fw-chart-day { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:.5rem; }
+.fw-chart-bars { height:155px; width:100%; display:flex; align-items:flex-end; justify-content:center; gap:2px; }
+.fw-bar { display:block; width:30%; min-height:2px; border-radius:4px 4px 0 0; }
+.fw-bar--claims { background:#63e6a4; } .fw-bar--trades { background:#70a7ff; } .fw-bar--farming { background:#bd91ff; }
+.fw-chart-label { color:var(--fw-muted); font-size:.62rem; }
+.fw-legend { display:flex; gap:1.1rem; flex-wrap:wrap; margin-top:1rem; color:var(--fw-muted); font-size:.75rem; }
+.fw-legend span { display:flex; align-items:center; gap:.4rem; }
+.fw-dot { width:.5rem; height:.5rem; display:inline-block; border-radius:50%; }
+.fw-dot--claims { background:#63e6a4; } .fw-dot--trades { background:#70a7ff; } .fw-dot--farming { background:#bd91ff; }
+.fw-row { display:flex; justify-content:space-between; gap:.75rem; padding:.65rem 0; border-bottom:1px solid var(--fw-border); color:var(--fw-muted); font-size:.84rem; }
+.fw-row strong { color:var(--fw-text); font-variant-numeric:tabular-nums; }
+.fw-table-wrap { overflow-x:auto; } .fw-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+.fw-table th,.fw-table td { padding:.75rem .6rem; text-align:left; border-bottom:1px solid var(--fw-border); white-space:nowrap; }
+.fw-table th { color:var(--fw-muted); font-weight:600; }
+@media(max-width:850px) { .fw-page .fw-grid[style*="repeat(3"] { grid-template-columns:1fr !important; } .fw-chart-label:nth-child(odd) { opacity:.7; } }
