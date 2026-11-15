@@ -120,6 +120,7 @@ public sealed class FarmWatchController : ArchiController {
 			}
 
 			await FarmWatchSettings.Current.SetBot(request.BotName, request.BotAutoClaimEnabled.Value).ConfigureAwait(false);
+			FarmWatchDiagnostics.Record("settings", $"Bot auto-claim set to {request.BotAutoClaimEnabled.Value}.", request.BotName, request.BotAutoClaimEnabled.Value ? "warning" : "info");
 			handler.SetFarmWatchEnabled(request.BotAutoClaimEnabled.Value);
 		}
 
@@ -127,6 +128,7 @@ public sealed class FarmWatchController : ArchiController {
 			bool autoClaim = request.AutoClaimEnabled ?? FreePackages.FarmWatchAutoClaimEnabled;
 			bool observeOnly = request.ObserveOnly ?? FreePackages.FarmWatchObserveOnly;
 			await FarmWatchSettings.Current.SetGlobal(request.AutoClaimEnabled, request.ObserveOnly).ConfigureAwait(false);
+			FarmWatchDiagnostics.Record("settings", $"Global settings updated: autoClaim={autoClaim}, observeOnly={observeOnly}.", level: autoClaim && !observeOnly ? "warning" : "info");
 			FreePackages.ApplyGlobalSettings(autoClaim, observeOnly);
 		}
 
