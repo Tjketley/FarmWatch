@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Concurrent;
+using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
+using ArchiSteamFarm.Core;
 
 namespace FreePackages;
 
@@ -17,11 +21,40 @@ internal sealed class FarmWatchEvent {
 
 internal static class FarmWatchDiagnostics {
 	private const int MaximumEvents = 500;
+	private const long MaximumLogBytes = 5 * 1024 * 1024;
 	private static readonly ConcurrentQueue<FarmWatchEvent> Events = new();
+	private static readonly object FileLock = new();
+	private static readonly string LogPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.events.jsonl");
 	private static long NextId;
+	private static bool Initialized;
+
+	internal static void Initialize() {
+		lock (FileLock) {
+			if (Initialized) return;
+			Initialized = true;
+
+			try {
+				if (!File.Exists(LogPath)) return;
+
+				foreach (string line in File.ReadLines(LogPath).TakeLast(MaximumEvents)) {
+					try {
+						FarmWatchEvent? entry = JsonSerializer.Deserialize<FarmWatchEvent>(line);
+						if (entry == null) continue;
+						Events.Enqueue(entry);
+						NextId = Math.Max(NextId, entry.Id);
+					} catch (JsonException) {
+						// Ignore a partially written final record and continue recovering earlier events.
+					}
+				}
+			} catch (Exception e) {
+				ASF.ArchiLogger.LogGenericWarningException(e);
+			}
+		}
+	}
 
 	internal static void Record(string category, string message, string? bot = null, string level = "info", string? details = null) {
-		Events.Enqueue(new FarmWatchEvent {
+		Initialize();
+		FarmWatchEvent entry = new() {
 			Id = Interlocked.Increment(ref NextId),
 			TimestampUtc = DateTime.UtcNow,
 			Level = level,
@@ -29,10 +62,27 @@ internal static class FarmWatchDiagnostics {
 			Bot = bot,
 			Message = message,
 			Details = details
-		});
+		};
 
-		while (Events.Count > MaximumEvents) {
-			Events.TryDequeue(out _);
+		Events.Enqueue(entry);
+		while (Events.Count > MaximumEvents) Events.TryDequeue(out _);
+
+		try {
+			lock (FileLock) {
+				Directory.CreateDirectory(ArchiSteamFarm.SharedInfo.ConfigDirectory);
+				if (File.Exists(LogPath) && new FileInfo(LogPath).Length >= MaximumLogBytes) {
+					string backupPath = LogPath + ".1";
+					if (File.Exists(backupPath)) File.Delete(backupPath);
+					File.Move(LogPath, backupPath);
+				}
+
+				byte[] bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(entry) + Environment.NewLine);
+				using FileStream stream = new(LogPath, FileMode.Append, FileAccess.Write, FileShare.Read, 4096, FileOptions.WriteThrough);
+				stream.Write(bytes);
+				stream.Flush(true);
+			}
+		} catch (Exception e) {
+			ASF.ArchiLogger.LogGenericWarningException(e);
 		}
 	}
 
