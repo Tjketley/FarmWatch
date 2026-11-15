@@ -1,24 +1,20 @@
-# Free Packages Importer
+# FarmWatch package importer (legacy utility)
 
-This userscript lets you transfer packages from SteamDB's [free packages tool](https://steamdb.info/freepackages/) to the [Free Packages ASF plugin](https://github.com/Citrinate/FreePackages).
+This is a legacy userscript retained from the upstream FreePackages project. It transfers package IDs displayed by SteamDB's [Free Packages tool](https://steamdb.info/freepackages/) into an ASF plugin queue through ASF's IPC API.
+
+**Compatibility note:** this utility has not yet been rebranded, integrated into the FarmWatch dashboard, or revalidated against the current FarmWatch build. Treat it as an experimental legacy helper, not a supported FarmWatch feature. It can submit package IDs directly and must not be confused with FarmWatch's verified automatic Free-to-Keep discovery and claim path.
 
 ## Installation
 
-1. Install a userscript manager like [Violentmonkey](https://violentmonkey.github.io/)
-2. Go [here](https://raw.githubusercontent.com/Citrinate/FreePackages/main/FreePackagesImporter/code.user.js) and click "Install"
-3. Make sure that you have:
-    - ArchiSteamFarm with [IPC](https://github.com/JustArchiNET/ArchiSteamFarm/wiki/IPC) enabled (which is the default)
-    - The [Free Packages plugin](https://github.com/Citrinate/FreePackages) (v1.1.0 or newer)
-    - At least one bot with the plugin [enabled](https://github.com/Citrinate/FreePackages#enabling-the-plugin)
+1. Install a userscript manager such as [Violentmonkey](https://violentmonkey.github.io/).
+2. Review the userscript source in [code.user.js](code.user.js) before installing it.
+3. Use it only with a trusted ASF IPC endpoint and an appropriately protected ASF instance.
 
 ## Usage
 
-The userscript will add an additional element to SteamDB's [free packages tool](https://steamdb.info/freepackages/) where you can choose to send all of the packages shown on SteamDB to one or all of your ASF bots.
+The original userscript adds controls to SteamDB's free packages page to submit selected package IDs to ASF. Its original screenshots are retained for reference:
 
-![Interface](https://raw.githubusercontent.com/Citrinate/FreePackages/main/FreePackagesImporter/Screenshots/interface.png)
+- [Original interface screenshot](Screenshots/interface.png)
+- [Original settings screenshot](Screenshots/settings.png)
 
-If you use non-default IPC settings, you can click on "Settings" to change how the userscript connects to ASF.
-
-Here you can also control whether or not the packages sent to the plugin will be [filtered](https://github.com/Citrinate/FreePackages#enabling-package-filters).  If not filtered, the plugin will attempt to activate all packages sent to it.
-
-![Settings](https://raw.githubusercontent.com/Citrinate/FreePackages/main/FreePackagesImporter/Screenshots/settings.png)
+The userscript and screenshots originate from the upstream FreePackages project. They are not the FarmWatch dashboard and are not included in the FarmWatch release package.
