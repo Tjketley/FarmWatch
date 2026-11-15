@@ -44,6 +44,7 @@ html = root / "src/index.html"
 text = html.read_text()
 text = text.replace("<title>ASF</title>", "<title>FarmWatch</title>")
 text = text.replace('href="/images/logo.png"', 'href="/farmwatch-mark.svg"')
+text = text.replace('${__BASE_PATH__}images/logo.png', '${__BASE_PATH__}farmwatch-mark.svg')
 html.write_text(text)
 
 routes = root / "src/router/routes.js"
