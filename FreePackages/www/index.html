@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FarmWatch · ArchiSteamFarm</title>
 <style>
-:root{color-scheme:dark;--bg:#101317;--panel:#191f25;--line:#2b343d;--text:#edf2f5;--muted:#9aa8b3;--accent:#8bc5a5;--warn:#e4bd72}
+:root{color-scheme:dark;--bg:#101317;--panel:#191f25;--line:#2b343d;--text:#edf2f5;--muted:#9aa8b3;--accent:#00e676;--accent-soft:#123b2b;--warn:#e4bd72}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
 main{max-width:900px;margin:0 auto;padding:38px 22px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:22px}
-h1{font-size:28px;letter-spacing:-.04em;margin:0}h2{font-size:16px;margin:0 0 14px}.sub,.muted{color:var(--muted)}.version{font:12px ui-monospace,monospace;color:var(--muted)}
+h1{font-size:28px;letter-spacing:-.04em;margin:0;color:var(--accent)}h2{font-size:16px;margin:0 0 14px}.sub,.muted{color:var(--muted)}.version{font:12px ui-monospace,monospace;color:var(--muted)}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-top:18px}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.metric{padding:15px;border:1px solid var(--line);border-radius:9px}.metric strong{display:block;font-size:19px;margin-top:5px}
 .status{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px}.dot{width:8px;height:8px;border-radius:50%;background:#78848e}.dot.on{background:var(--accent)}
 .bot{display:flex;justify-content:space-between;gap:15px;padding:13px 0;border-top:1px solid var(--line)}.bot:first-of-type{border-top:0}
-.notice{border-left:3px solid var(--warn);padding:10px 13px;background:#28241c;color:#e6d5b2;border-radius:4px;font-size:13px}
-button{background:#27342f;color:var(--text);border:1px solid #466553;padding:9px 13px;border-radius:7px;cursor:pointer}button:hover{background:#30453a}
+.notice{border-left:3px solid var(--accent);padding:10px 13px;background:var(--accent-soft);color:#b9f6d4;border-radius:4px;font-size:13px}
+button{background:#123b2b;color:var(--text);border:1px solid #087f4b;padding:9px 13px;border-radius:7px;cursor:pointer}button:hover{background:#18583d}
 @media(max-width:600px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
 </style>
 </head>
@@ -25,11 +25,17 @@ button{background:#27342f;color:var(--text);border:1px solid #466553;padding:9px
 <div class="metric"><span class="muted">Operating mode</span><strong id="mode">—</strong></div>
 </div><p class="notice" style="margin:16px 0 0">Safety first: auto-claim is disabled by default. Observe-only mode monitors eligible promotions without requesting Steam licences.</p></section>
 <section class="panel"><h2>Managed bots</h2><div id="bots" class="muted">Loading bot status…</div></section>
+<section class="panel"><h2>Safety settings</h2>
+<div class="bot"><div><strong>Observe-only mode</strong><div class="muted">Monitor verified promotions without claiming licences. Keep enabled while testing.</div></div><input id="observeOnly" type="checkbox" checked></div>
+<div class="bot"><div><strong>Global auto-claim</strong><div class="muted">Master switch. Requires observe-only to be off and a bot switch enabled.</div></div><input id="globalAutoClaim" type="checkbox"></div>
+<p class="notice">Changing these settings does not bypass FarmWatch's Free-to-Keep verification, ownership checks, or final activation safety gate.</p>
+<div id="saveMessage" class="muted" role="status" style="margin-top:12px"></div>
+</section>
 <footer style="display:flex;justify-content:space-between;align-items:center;margin-top:18px"><span class="muted" id="updated">—</span><button id="refresh" type="button">Refresh status</button></footer>
 </main>
 <script>
 const $=id=>document.getElementById(id);
-async function load(){
+async function saveSettings(payload){\n const response=await fetch('/Api/FarmWatch/Settings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});\n const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||('ASF returned HTTP '+response.status));$('saveMessage').textContent='Settings saved.';await load();\n}\nasync function load(){
  $('bots').textContent='Loading bot status…';
  try{
   const response=await fetch('/Api/FarmWatch/Status',{credentials:'same-origin',headers:{'Accept':'application/json'}});
@@ -37,7 +43,7 @@ async function load(){
   const data=await response.json();
   $('version').textContent='v'+data.version;
   $('global').textContent=data.globalAutoClaimEnabled?'Enabled':'Disabled';
-  $('mode').textContent=data.observeOnly?'Observe only':'Claim mode';
+  $('mode').textContent=data.observeOnly?'Observe only':'Claim mode';\n  $('observeOnly').checked=!!data.observeOnly;$('globalAutoClaim').checked=!!data.globalAutoClaimEnabled;
   $('bots').innerHTML='';
   if(!data.bots.length){$('bots').textContent='No FarmWatch-enabled bots are currently configured.';}
   for(const bot of data.bots){
@@ -51,5 +57,5 @@ async function load(){
   $('updated').textContent='Updated '+new Date().toLocaleTimeString();
  }catch(error){$('bots').textContent='Could not load FarmWatch status: '+error.message;$('version').textContent='Status unavailable';}
 }
-$('refresh').addEventListener('click',load);load();
+$('observeOnly').addEventListener('change',async e=>{try{if(!e.target.checked&&!confirm('Turn off observe-only mode? FarmWatch may claim verified Free-to-Keep promotions if both auto-claim switches are enabled.')){e.target.checked=true;return;}await saveSettings({observeOnly:e.target.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});\n$('globalAutoClaim').addEventListener('change',async e=>{try{if(e.target.checked&&!confirm('Enable the global auto-claim master switch? Individual bot switches must also be enabled.')){e.target.checked=false;return;}await saveSettings({autoClaimEnabled:e.target.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});\n$('refresh').addEventListener('click',load);load();
 </script></body></html>
