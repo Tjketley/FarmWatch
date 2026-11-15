@@ -49,17 +49,42 @@ jobs:
             exit 1
           fi
 
-      - name: Upload plugin artifact
+      - name: Upload plugin build artifact
         uses: actions/upload-artifact@v4
         with:
           name: FarmWatch-Plugin
           path: out/plugin-package/
 
-      - name: Upload standalone ASF UI artifact
+      - name: Upload standalone ASF UI build artifact
         uses: actions/upload-artifact@v4
         with:
           name: FarmWatch-ASF-UI
           path: out/asf-ui/
+
+      - name: Create and verify separate release ZIPs
+        run: |
+          mkdir -p out/release
+          ( cd out/plugin-package && 7z a -tzip -mx7 ../release/FarmWatch.zip * )
+          ( cd out/asf-ui && 7z a -tzip -mx7 ../release/FarmWatch-ASF-UI.zip * )
+          unzip -Z1 out/release/FarmWatch.zip > out/release/plugin-files.txt
+          unzip -Z1 out/release/FarmWatch-ASF-UI.zip > out/release/ui-files.txt
+          grep -qx 'FarmWatch.dll' out/release/plugin-files.txt
+          grep -qx 'CONNECT.md' out/release/plugin-files.txt
+          grep -qx 'index.html' out/release/ui-files.txt
+          grep -qx 'farmwatch-mark.svg' out/release/ui-files.txt
+          grep -qx 'INSTALL.md' out/release/ui-files.txt
+          if grep -Eq '(^|/)www/|farmwatch-mark.svg' out/release/plugin-files.txt; then
+            echo "Standalone UI assets leaked into the plugin ZIP."
+            exit 1
+          fi
+
+      - name: Upload verified release ZIPs
+        uses: actions/upload-artifact@v4
+        with:
+          name: FarmWatch-Release-ZIPs
+          path: |
+            out/release/FarmWatch.zip
+            out/release/FarmWatch-ASF-UI.zip
 
   release:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
@@ -80,48 +105,31 @@ jobs:
             exit 1
           fi
 
-      - name: Download plugin artifact
+      - name: Download verified release ZIPs
         uses: actions/download-artifact@v4
         with:
-          name: FarmWatch-Plugin
-          path: out/plugin
+          name: FarmWatch-Release-ZIPs
+          path: out/release
 
-      - name: Download ASF UI artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: FarmWatch-ASF-UI
-          path: out/asf-ui
-
-      - name: Create and verify separate ZIP packages
+      - name: Apply release version to artifact names
         run: |
-          cd out
-          ( cd plugin && 7z a -tzip -mx7 "../FarmWatch-${GITHUB_REF_NAME}.zip" * )
-          ( cd asf-ui && 7z a -tzip -mx7 "../FarmWatch-ASF-UI-${GITHUB_REF_NAME}.zip" * )
-          unzip -Z1 "FarmWatch-${GITHUB_REF_NAME}.zip" > plugin-files.txt
-          unzip -Z1 "FarmWatch-ASF-UI-${GITHUB_REF_NAME}.zip" > ui-files.txt
-          grep -qx 'FarmWatch.dll' plugin-files.txt
-          grep -qx 'CONNECT.md' plugin-files.txt
-          grep -qx 'index.html' ui-files.txt
-          grep -qx 'farmwatch-mark.svg' ui-files.txt
-          if grep -Eq '(^|/)www/|farmwatch-mark.svg' plugin-files.txt; then
-            echo "Standalone UI assets leaked into the plugin ZIP."
-            exit 1
-          fi
+          mv out/release/FarmWatch.zip "out/release/FarmWatch-${GITHUB_REF_NAME}.zip"
+          mv out/release/FarmWatch-ASF-UI.zip "out/release/FarmWatch-ASF-UI-${GITHUB_REF_NAME}.zip"
 
       - name: Attest plugin package
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: out/FarmWatch-${{ github.ref_name }}.zip
+          subject-path: out/release/FarmWatch-${{ github.ref_name }}.zip
 
       - name: Attest standalone ASF UI package
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: out/FarmWatch-ASF-UI-${{ github.ref_name }}.zip
+          subject-path: out/release/FarmWatch-ASF-UI-${{ github.ref_name }}.zip
 
       - name: Publish FarmWatch GitHub release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: out/FarmWatch-${{ github.ref_name }}.zip,out/FarmWatch-ASF-UI-${{ github.ref_name }}.zip
+          artifacts: out/release/FarmWatch-${{ github.ref_name }}.zip,out/release/FarmWatch-ASF-UI-${{ github.ref_name }}.zip
           artifactContentType: application/zip
           name: FarmWatch V${{ github.ref_name }}
           tag: ${{ github.ref_name }}
