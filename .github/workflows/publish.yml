@@ -23,7 +23,7 @@ jobs:
           ref: c2b00c774347d34f461d7168ca2e2ea6809abd0d
           path: upstream-asf-ui
       - name: Apply FarmWatch skin
-        run: ./ui-skin/apply-theme.sh "$GITHUB_WORKSPACE/upstream-asf-ui"
+        run: bash ./ui-skin/apply-theme.sh "$GITHUB_WORKSPACE/upstream-asf-ui"
       - name: Build themed ASF-ui
         working-directory: upstream-asf-ui
         run: |
