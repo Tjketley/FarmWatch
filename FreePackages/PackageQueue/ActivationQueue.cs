@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Steam;
 using FreePackages.Localization;
 using SteamKit2;
@@ -13,11 +14,14 @@ namespace FreePackages {
 		internal const uint MaxActivationsPerPeriod = 30; // Steam's imposed limit
 		internal const uint ActivationPeriodMinutes = 90; // Steam's imposed limit
 		internal readonly PackageFilter PackageFilter;
+		internal bool FarmWatchEnabled { get; set; }
+		protected override bool FarmWatchEnabledForBot => FarmWatchEnabled;
 		internal static readonly HashSet<EPackageType> ActivationTypes = [EPackageType.App, EPackageType.Sub, EPackageType.Playtest];
 		internal int ActivationsRemaining => BotCache.Packages.Where(x => ActivationTypes.Contains(x.Type)).Count();
 
-		internal ActivationQueue(Bot bot, BotCache botCache, bool pauseWhilePlaying, bool pauseWhileFarming, uint? packageLimit, PackageFilter packageFilter) : base(bot, botCache, pauseWhilePlaying, pauseWhileFarming) {
+		internal ActivationQueue(Bot bot, BotCache botCache, bool pauseWhilePlaying, bool pauseWhileFarming, uint? packageLimit, PackageFilter packageFilter, bool farmWatchEnabled) : base(bot, botCache, pauseWhilePlaying, pauseWhileFarming) {
 			PackageFilter = packageFilter;
+			FarmWatchEnabled = farmWatchEnabled;
 
 			if (packageLimit != null) {
 				ActivationsPerPeriod = Math.Min(packageLimit.Value, MaxActivationsPerPeriod);
@@ -110,6 +114,118 @@ namespace FreePackages {
 				}
 
 				return DateTime.Now.AddSeconds(1);
+			}
+
+			// Free DLC uses a separate AppID path, but must be re-verified against live PICS
+			// metadata and the owning account's current base-game ownership immediately before claim.
+			if (package.Type == EPackageType.App) {
+				List<SteamApps.PICSProductInfoCallback>? appProductInfos = await ProductInfo.GetProductInfo(appIDs: new HashSet<uint> { package.ID }).ConfigureAwait(false);
+				if (appProductInfos == null) {
+					Bot.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
+					return DateTime.Now.AddMinutes(1);
+				}
+
+				List<FilterableApp>? currentApps = await FilterableApp.GetFilterables(appProductInfos, onNonFreeApp: x => false).ConfigureAwait(false);
+				if (currentApps == null) {
+					Bot.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
+					return DateTime.Now.AddMinutes(1);
+				}
+
+				FilterableApp? currentApp = currentApps.FirstOrDefault(x => x.ID == package.ID);
+				PromotionEvidence? previousEvidence = BotCache.PromotionEvidence.FirstOrDefault(x => x.TargetType == EPackageType.App && x.TargetID == package.ID && x.IsOwnedGameFreeDlc);
+				bool verifiedDlc = false;
+				if (currentApp != null && currentApp.Type == EAppType.DLC && currentApp.IsFreeApp &&
+					currentApp.ParentID is uint parentAppID && previousEvidence != null && previousEvidence.ParentAppID == parentAppID &&
+					PackageFilter.IsOwnedApp(parentAppID) && PackageFilter.IsRedeemableApp(currentApp)) {
+					List<SteamApps.PICSProductInfoCallback>? parentProductInfos = await ProductInfo.GetProductInfo(appIDs: new HashSet<uint> { parentAppID }).ConfigureAwait(false);
+					if (parentProductInfos == null) {
+						Bot.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
+						return DateTime.Now.AddMinutes(1);
+					}
+
+					List<FilterableApp>? parentApps = await FilterableApp.GetFilterables(parentProductInfos, onNonFreeApp: x => false).ConfigureAwait(false);
+					if (parentApps == null) {
+						Bot.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
+						return DateTime.Now.AddMinutes(1);
+					}
+
+					verifiedDlc = parentApps.Any(parent => parent.ID == parentAppID && parent.Type == EAppType.Game);
+				}
+
+				if (!verifiedDlc) {
+					Bot.ArchiLogger.LogGenericInfo($"FarmWatch rejected app/{package.ID}: current metadata no longer confirms free DLC for an owned game.");
+					BotCache.RemovePackage(package);
+					return DateTime.Now.AddSeconds(1);
+				}
+
+				PromotionEvidence refreshedDlcEvidence = PromotionEvidence.ForOwnedGameFreeDlc(
+					package.ID,
+					previousEvidence!.ParentAppID,
+					DateTime.UtcNow
+				);
+				if (!BotCache.AddPromotionEvidence(refreshedDlcEvidence)) {
+					Bot.ArchiLogger.LogGenericWarning($"FarmWatch rejected app/{package.ID}: refreshed owned-game free-DLC evidence failed validation.");
+					BotCache.RemovePackage(package);
+					return DateTime.Now.AddSeconds(1);
+				}
+			}
+
+			// Refresh the Steam PICS package metadata immediately before the shared activation gate.
+			// This is independent of the older filter-hash scan above.
+			if (package.Type == EPackageType.Sub) {
+				List<SteamApps.PICSProductInfoCallback>? currentProductInfos = await ProductInfo.GetProductInfo(packageIDs: new HashSet<uint> { package.ID }).ConfigureAwait(false);
+				if (currentProductInfos == null) {
+					Bot.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
+					return DateTime.Now.AddMinutes(1);
+				}
+
+				List<FilterablePackage>? currentPackages = await FilterablePackage.GetFilterables(currentProductInfos, onNonFreePackage: x => false).ConfigureAwait(false);
+				if (currentPackages == null) {
+					Bot.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
+					return DateTime.Now.AddMinutes(1);
+				}
+
+				FilterablePackage? current = currentPackages.FirstOrDefault(x => x.ID == package.ID);
+				ulong now = DateUtils.DateTimeToUnixTime(DateTime.UtcNow);
+				bool verified = current != null &&
+					current.FreePromotion &&
+					!current.FreeWeekend &&
+					current.BillingType == EBillingType.NoCost &&
+					current.LicenseType == ELicenseType.SinglePurchase &&
+					current.IsAvailable() &&
+					(current.StartTime == 0 || current.StartTime <= now) &&
+					current.IsAvailablePackageContents() &&
+					current.PackageContents.Count == 1 &&
+					current.PackageContents[0].Type == EAppType.Game &&
+					!current.PackageContents[0].IsFreeApp &&
+					PackageFilter.IsRedeemablePackage(current) &&
+					PackageFilter.IsWantedPackage(current);
+
+				if (!verified) {
+					Bot.ArchiLogger.LogGenericInfo($"FarmWatch rejected sub/{package.ID}: current Steam PICS metadata no longer confirms a single-game Free-to-Keep promotion.");
+					BotCache.RemovePackage(package);
+					return DateTime.Now.AddSeconds(1);
+				}
+
+				DateTime? promotionEnd = current!.ExpiryTime > 0
+					? DateTimeOffset.FromUnixTimeSeconds((long) current.ExpiryTime).UtcDateTime
+					: null;
+
+				PromotionEvidence refreshedFreeToKeepEvidence = new() {
+					TargetType = EPackageType.Sub,
+					TargetID = current.ID,
+					Source = PromotionEvidence.TrustedSource,
+					SourceUrl = $"https://steamdb.info/sub/{current.ID}/",
+					ObservedAtUtc = DateTime.UtcNow,
+					PromotionEndsAtUtc = promotionEnd,
+					IsExplicitFreeToKeep = true,
+					PermanentLicenceConfirmed = true
+				};
+				if (!BotCache.AddPromotionEvidence(refreshedFreeToKeepEvidence)) {
+					Bot.ArchiLogger.LogGenericWarning($"FarmWatch rejected sub/{package.ID}: refreshed Free-to-Keep evidence failed validation.");
+					BotCache.RemovePackage(package);
+					return DateTime.Now.AddSeconds(1);
+				}
 			}
 
 			return null;

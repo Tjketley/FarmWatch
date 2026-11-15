@@ -15,6 +15,7 @@ namespace FreePackages {
 		internal readonly bool PauseWhileFarming = false;
 		private PackageFilter PackageFilter => PackageHandler.Handlers[Bot.BotName].PackageFilter;
 		private Timer Timer;
+		protected virtual bool FarmWatchEnabledForBot => false;
 
 		internal PackageQueue(Bot bot, BotCache botCache, bool pauseWhilePlaying, bool pauseWhileFarming) {
 			Bot = bot;
@@ -61,11 +62,45 @@ namespace FreePackages {
 				return;
 			}
 
+			// In observe-only mode, continue through discovery and fresh metadata verification without claiming.
+			// Outside observe-only mode, both explicit auto-claim switches are required.
+			if ((package.Type is EPackageType.App or EPackageType.Sub or EPackageType.Playtest) &&
+				!FreePackages.FarmWatchObserveOnly &&
+				(!FreePackages.FarmWatchAutoClaimEnabled || !FarmWatchEnabledForBot)) {
+				UpdateTimer(DateTime.Now.AddMinutes(1));
+				return;
+			}
+
 			{
 				DateTime? waitUntil = await BeforeProcessing(package).ConfigureAwait(false);
 				if (waitUntil != null) {
 					UpdateTimer(waitUntil.Value);
 
+					return;
+				}
+			}
+
+			// FarmWatch final authorization gate: this runs immediately before any Steam activation call.
+			// Missing, stale, or contradictory promotion evidence must never fall through to ASF.
+			if (package.Type is EPackageType.App or EPackageType.Sub or EPackageType.Playtest) {
+				// A disabled switch pauses the queue without discarding candidates. Re-enabling
+				// both switches will still require fresh evidence at this final gate.
+				if (package.Type == EPackageType.Playtest || !BotCache.HasCurrentClaimEvidence(package)) {
+					Bot.ArchiLogger.LogGenericInfo($"FarmWatch rejected activation for {package.Type}/{package.ID}: verified Free-to-Keep evidence missing or stale.");
+					BotCache.RemovePackage(package);
+					UpdateTimer(DateTime.Now.AddSeconds(1));
+					return;
+				}
+
+				if (!FarmWatchActivationPolicy.ShouldActivate(
+					FreePackages.FarmWatchObserveOnly,
+					FreePackages.FarmWatchAutoClaimEnabled,
+					FarmWatchEnabledForBot,
+					package.Type,
+					BotCache.HasCurrentClaimEvidence(package))) {
+					Bot.ArchiLogger.LogGenericInfo($"FarmWatch observe-only: verified claim candidate {package.Type}/{package.ID}; no licence activation attempted.");
+					BotCache.RemovePackage(package);
+					UpdateTimer(DateTime.Now.AddSeconds(1));
 					return;
 				}
 			}

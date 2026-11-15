@@ -15,6 +15,11 @@ namespace FreePackages {
 		internal readonly Bot Bot;
 		internal readonly BotCache BotCache;
 		internal readonly PackageFilter PackageFilter;
+		internal bool FarmWatchEnabled { get; private set; }
+		internal void SetFarmWatchEnabled(bool enabled) {
+			FarmWatchEnabled = enabled;
+			ActivationQueue.FarmWatchEnabled = enabled;
+		}
 		private readonly ActivationQueue ActivationQueue;
 		private readonly RemovalQueue RemovalQueue;
 		private CancellationTokenSource? RemovalCancellation;
@@ -25,11 +30,12 @@ namespace FreePackages {
 		private static SemaphoreSlim AddHandlerSemaphore = new SemaphoreSlim(1, 1);
 		private static SemaphoreSlim ProcessChangesSemaphore = new SemaphoreSlim(1, 1);
 
-		private PackageHandler(Bot bot, BotCache botCache, List<FilterConfig> filterConfigs, uint? packageLimit, bool pauseWhilePlaying, bool pauseWhileFarming) {
+		private PackageHandler(Bot bot, BotCache botCache, List<FilterConfig> filterConfigs, uint? packageLimit, bool pauseWhilePlaying, bool pauseWhileFarming, bool farmWatchEnabled) {
 			Bot = bot;
 			BotCache = botCache;
 			PackageFilter = new PackageFilter(botCache, filterConfigs);
-			ActivationQueue = new ActivationQueue(bot, botCache, pauseWhilePlaying, pauseWhileFarming, packageLimit, PackageFilter);
+			FarmWatchEnabled = farmWatchEnabled;
+			ActivationQueue = new ActivationQueue(bot, botCache, pauseWhilePlaying, pauseWhileFarming, packageLimit, PackageFilter, farmWatchEnabled);
 			RemovalQueue = new RemovalQueue(bot, botCache, pauseWhilePlaying, pauseWhileFarming);
 			UserDataRefreshTimer = new Timer(async e => await FetchUserData().ConfigureAwait(false), null, Timeout.Infinite, Timeout.Infinite);
 		}
@@ -40,7 +46,7 @@ namespace FreePackages {
 			UserDataRefreshTimer.Dispose();
 		}
 
-		internal static async Task AddHandler(Bot bot, List<FilterConfig> filterConfigs, uint? packageLimit, bool pauseWhilePlaying, bool pauseWhileFarming) {
+		internal static async Task AddHandler(Bot bot, List<FilterConfig> filterConfigs, uint? packageLimit, bool pauseWhilePlaying, bool pauseWhileFarming, bool farmWatchEnabled) {
 			if (Handlers.ContainsKey(bot.BotName)) {
 				Handlers[bot.BotName].Dispose();
 				Handlers.TryRemove(bot.BotName, out PackageHandler? _);
@@ -57,14 +63,14 @@ namespace FreePackages {
 					}
 				}
 
-				string cacheFilePath = Bot.GetFilePath(String.Format("{0}_{1}", bot.BotName, nameof(FreePackages)), EBotFileType.Database);
+				string cacheFilePath = Bot.GetFilePath(String.Format("{0}_{1}", bot.BotName, nameof(FreePackages)), Bot.EFileType.Database);
 				BotCache? botCache = await BotCache.CreateOrLoad(cacheFilePath).ConfigureAwait(false);
 				if (botCache == null) {
 					bot.ArchiLogger.LogGenericError(String.Format(ArchiSteamFarm.Localization.Strings.ErrorDatabaseInvalid, cacheFilePath));
 					botCache = new(cacheFilePath);
 				}
 
-				Handlers.TryAdd(bot.BotName, new PackageHandler(bot, botCache, filterConfigs, packageLimit, pauseWhilePlaying, pauseWhileFarming));
+				Handlers.TryAdd(bot.BotName, new PackageHandler(bot, botCache, filterConfigs, packageLimit, pauseWhilePlaying, pauseWhileFarming, farmWatchEnabled));
 			} finally {
 				AddHandlerSemaphore.Release();
 			}
@@ -212,6 +218,7 @@ namespace FreePackages {
 				List<FilterablePackage>? packages = await FilterablePackage.GetFilterables(
 					productInfos,
 					package => {
+						ASF.ArchiLogger.LogGenericDebug($"FarmWatch package/{package.ID} filtered before F2K evaluation: billing={package.BillingType}, status={package.Status}, licence={package.LicenseType}, freePromotion={package.FreePromotion}, freeWeekend={package.FreeWeekend}, expiry={package.ExpiryTime}, appCount={package.PackageContentIDs.Count}.");
 						Handlers.Values.ToList().ForEach(x => x.BotCache.RemoveChange(packageID: package.ID));
 
 						return !newOwnedPackageIDs.Contains(package.ID);
@@ -223,6 +230,8 @@ namespace FreePackages {
 
 					return;
 				}
+
+				ASF.ArchiLogger.LogGenericInfo($"FarmWatch package metadata evaluation: {packages.Count} eligible package records returned for evaluation from {productInfoPackageIDs?.Count ?? 0} requested package IDs.");
 
 				if (packages.Count > 0) {
 					packages.ForEach(package => {
@@ -263,24 +272,24 @@ namespace FreePackages {
 		}
 
 		private void HandleFreeApp(FilterableApp app) {
-			if (!BotCache.ChangedApps.Contains(app.ID)) {
-				return;
-			}
-
-			if (!PackageFilter.Ready) {
+			if (!BotCache.ChangedApps.Contains(app.ID) || !PackageFilter.Ready) {
 				return;
 			}
 
 			try {
-				if (!PackageFilter.IsRedeemableApp(app)) {
-					return;
+				// Separate safe path for genuinely free DLC attached to a game already owned by this account.
+				if (app.Type == EAppType.DLC && app.IsFreeApp && app.ParentID is uint parentAppID &&
+					PackageFilter.IsOwnedApp(parentAppID) && PackageFilter.IsRedeemableApp(app)) {
+					PromotionEvidence evidence = PromotionEvidence.ForOwnedGameFreeDlc(app.ID, parentAppID, DateTime.UtcNow);
+					if (BotCache.AddPromotionEvidence(evidence) && BotCache.HasCurrentClaimEvidence(new Package(EPackageType.App, app.ID))) {
+						BotCache.AddPackage(new Package(EPackageType.App, app.ID, filterHash: PackageFilter.Hash));
+						Bot.ArchiLogger.LogGenericInfo($"FarmWatch queued free DLC app/{app.ID} for owned game/{parentAppID}.");
+					} else {
+						Bot.ArchiLogger.LogGenericWarning($"FarmWatch did not queue app/{app.ID}: owned-game free-DLC evidence failed validation.");
+					}
+				} else {
+					Bot.ArchiLogger.LogGenericDebug($"FarmWatch skipped app/{app.ID}: not verified as free DLC for an owned game.");
 				}
-
-				if (!PackageFilter.IsWantedApp(app)) {
-					return;
-				}
-
-				BotCache.AddPackage(new Package(EPackageType.App, app.ID, filterHash: PackageFilter.Hash));
 			} finally {
 				BotCache.RemoveChange(appID: app.ID);
 			}
@@ -296,6 +305,31 @@ namespace FreePackages {
 			}
 
 			try {
+				// Keep discovery and synthetic tests on the exact same eligibility policy.
+				if (!FarmWatchEligibilityPolicy.IsFreeToKeepPackage(package)) {
+					Bot.ArchiLogger.LogGenericDebug($"FarmWatch rejected sub/{package.ID}: package metadata did not meet the strict Free-to-Keep eligibility policy.");
+					return;
+				}
+
+				DateTime? promotionEnd = package.ExpiryTime > 0
+					? DateTimeOffset.FromUnixTimeSeconds((long) package.ExpiryTime).UtcDateTime
+					: null;
+
+				PromotionEvidence evidence = new() {
+					TargetType = EPackageType.Sub,
+					TargetID = package.ID,
+					Source = PromotionEvidence.TrustedSource,
+					SourceUrl = $"https://steamdb.info/sub/{package.ID}/",
+					ObservedAtUtc = DateTime.UtcNow,
+					PromotionEndsAtUtc = promotionEnd,
+					IsExplicitFreeToKeep = true,
+					PermanentLicenceConfirmed = true
+				};
+				if (!BotCache.AddPromotionEvidence(evidence)) {
+					Bot.ArchiLogger.LogGenericWarning($"FarmWatch rejected sub/{package.ID}: Free-to-Keep evidence failed validation.");
+					return;
+				}
+
 				if (!PackageFilter.IsRedeemablePackage(package)) {
 					return;
 				}
@@ -320,24 +354,9 @@ namespace FreePackages {
 				return;
 			}
 
-			if (!PackageFilter.Ready) {
-				return;
-			}
-
 			try {
-				if (app.Parent == null) {
-					return;
-				}
-
-				if (!PackageFilter.IsRedeemablePlaytest(app)) {
-					return;
-				}
-
-				if (!PackageFilter.IsWantedPlaytest(app)) {
-					return;
-				}
-
-				BotCache.AddPackage(new Package(EPackageType.Playtest, app.Parent.ID, filterHash: PackageFilter.Hash));
+				// Playtest access is temporary/conditional, never a permanent Free-to-Keep licence.
+				Bot.ArchiLogger.LogGenericDebug($"FarmWatch skipped playtest app/{app.ID}: playtests are not eligible for auto-claim.");
 			} finally {
 				BotCache.RemoveChange(appID: app.ID);
 			}

@@ -22,6 +22,8 @@ namespace FreePackages {
 				return;
 			}
 
+			ASF.ArchiLogger.LogGenericInfo($"FarmWatch PICS change {currentChangeNumber}: received {appChanges.Count} app IDs and {packageChanges.Count} package IDs; sample package IDs: {String.Join(",", packageChanges.Keys.Take(5))}.");
+
 			PackageHandler.AddChanges(appChanges, packageChanges);
 			FreePackages.GlobalCache.UpdateChangeNumber(currentChangeNumber);
 			

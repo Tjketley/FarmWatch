@@ -46,6 +46,10 @@ namespace FreePackages {
 		internal ConcurrentHashSet<uint> IgnoredApps { get; private set; } = new();
 
 		[JsonInclude]
+		[JsonDisallowNull]
+		internal List<PromotionEvidence> PromotionEvidence { get; private set; } = new();
+
+		[JsonInclude]
 		internal uint LastASFInfoItemCount { get; private set; }
 
 		private HashSet<uint> SeenPackageIDActivations = new();
@@ -62,7 +66,7 @@ namespace FreePackages {
 			FilePath = filePath;
 		}
 
-		protected override Task Save(CancellationToken cancellationToken = default) => Save(this, cancellationToken);
+		protected override Task Save() => Save(this);
 
 		internal static async Task<BotCache?> CreateOrLoad(string filePath) {
 			if (string.IsNullOrEmpty(filePath)) {
@@ -100,6 +104,33 @@ namespace FreePackages {
 			botCache.FilePath = filePath;
 			
 			return botCache;
+		}
+
+		internal bool AddPromotionEvidence(PromotionEvidence evidence) {
+			if (evidence == null || !evidence.HasValidShape()) {
+				return false;
+			}
+
+			PromotionEvidence.RemoveAll(existing => existing.TargetType == evidence.TargetType && existing.TargetID == evidence.TargetID);
+			PromotionEvidence.Add(evidence);
+			Utilities.InBackground(() => Save());
+			return true;
+		}
+
+		internal bool HasCurrentClaimEvidence(Package package) {
+			if (package.Type is not (EPackageType.App or EPackageType.Sub)) {
+				return false;
+			}
+
+			DateTime now = DateTime.UtcNow;
+			return PromotionEvidence.Any(evidence =>
+				evidence.TargetType == package.Type &&
+				evidence.TargetID == package.ID &&
+				evidence.HasValidShape() &&
+				evidence.IsOwnedGameFreeDlc == (package.Type == EPackageType.App) &&
+				now - evidence.ObservedAtUtc <= TimeSpan.FromMinutes(5) &&
+				(evidence.PromotionEndsAtUtc == null || evidence.PromotionEndsAtUtc > now)
+			);
 		}
 
 		internal bool AddPackage(Package package) {

@@ -62,11 +62,27 @@ namespace FreePackages {
 					return null;
 				}
 
-				var apps = appIDs == null ? Enumerable.Empty<SteamApps.PICSRequest>() : appIDs.Select(x => new SteamApps.PICSRequest(x));
-				var packages = packageIDs == null ? Enumerable.Empty<SteamApps.PICSRequest>() : packageIDs.Select(x => new SteamApps.PICSRequest(x, ASF.GlobalDatabase?.PackageAccessTokensReadOnly.GetValueOrDefault(x, (ulong) 0) ?? 0));
-				var response = await bot.SteamApps.PICSGetProductInfo(apps, packages).ToLongRunningTask().ConfigureAwait(false);
+				uint[] requestedAppIDs = appIDs?.ToArray() ?? Array.Empty<uint>();
+				uint[] requestedPackageIDs = packageIDs?.ToArray() ?? Array.Empty<uint>();
+				var packageAccessTokens = ASF.GlobalDatabase?.PackageAccessTokensReadOnly;
+				int packagesWithCachedTokens = requestedPackageIDs.Count(id => packageAccessTokens?.ContainsKey(id) == true);
 
-				return response.Results?.ToList();
+				ASF.ArchiLogger.LogGenericInfo($"FarmWatch PICS product-info request: {requestedAppIDs.Length} apps, {requestedPackageIDs.Length} packages; cached package access tokens: {packagesWithCachedTokens}/{requestedPackageIDs.Length}.");
+
+				var apps = requestedAppIDs.Select(x => new SteamApps.PICSRequest(x));
+				var packages = requestedPackageIDs.Select(x => new SteamApps.PICSRequest(x, packageAccessTokens?.GetValueOrDefault(x, (ulong) 0) ?? 0));
+				var response = await bot.SteamApps.PICSGetProductInfo(apps, packages).ToLongRunningTask().ConfigureAwait(false);
+				List<SteamApps.PICSProductInfoCallback>? results = response.Results?.ToList();
+				int returnedPackages = results?.Sum(result => result.Packages.Count) ?? 0;
+				int returnedApps = results?.Sum(result => result.Apps.Count) ?? 0;
+
+				ASF.ArchiLogger.LogGenericInfo($"FarmWatch PICS product-info response: {returnedApps} apps and {returnedPackages} packages returned across {results?.Count ?? 0} result groups.");
+
+				if (requestedPackageIDs.Length > 0 && returnedPackages == 0) {
+					ASF.ArchiLogger.LogGenericWarning($"FarmWatch received no package metadata for {requestedPackageIDs.Length} requested package IDs; cached access tokens: {packagesWithCachedTokens}/{requestedPackageIDs.Length}.");
+				}
+
+				return results;
 			} catch (Exception e) {
 				ASF.ArchiLogger.LogGenericWarningException(e);
 

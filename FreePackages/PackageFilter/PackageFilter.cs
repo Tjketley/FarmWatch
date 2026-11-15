@@ -45,6 +45,8 @@ namespace FreePackages {
 			UserData = userData;
 		}
 
+		internal bool IsOwnedApp(uint appID) => OwnedAppIDs?.Contains(appID) == true;
+
 		internal bool IsRedeemableApp(FilterableApp app, HashSet<uint>? includedAppIDs = null, bool ignoreAlreadyOwned = false) {
 			if (OwnedAppIDs == null) {
 				throw new InvalidOperationException(nameof(OwnedAppIDs));
