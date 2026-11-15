@@ -16,6 +16,7 @@
             <select class="form-control" v-model="level" style="max-width:150px"><option value="">All levels</option><option value="info">Info</option><option value="success">Success</option><option value="warning">Warning</option><option value="error">Error</option></select>
             <button class="btn btn-default btn-sm" :disabled="loading" @click="refresh">{{ loading ? 'Loading…' : 'Refresh' }}</button>
             <button class="btn btn-default btn-sm" @click="copyReport">Copy report</button>
+            <label class="fw-muted" style="font-size:.75rem;display:flex;align-items:center;gap:.35rem"><input type="checkbox" v-model="autoRefresh" @change="setAutoRefresh"> Auto-refresh</label>
           </div>
         </div>
         <p class="fw-muted" style="font-size:.75rem">Showing up to 200 most recent events · {{ events.storageFile || 'Storage path unavailable' }}</p>
@@ -56,13 +57,18 @@
 <script>
 export default {
   name: 'FarmWatchDiagnostics',
-  data() { return { diagnostics: {}, events: {}, level: '', error: '', message: '', loading: false }; },
+  data() { return { diagnostics: {}, events: {}, level: '', error: '', message: '', loading: false, autoRefresh: false, autoTimer: null }; },
   computed: {
     summary() { return this.diagnostics.global || {}; },
     filteredEvents() { return (this.events.events || []).filter(event => !this.level || String(event.level || 'info').toLowerCase() === this.level); },
   },
   created() { this.refresh(); },
+  beforeDestroy() { if (this.autoTimer) clearInterval(this.autoTimer); },
   methods: {
+    setAutoRefresh(enabled) {
+      if (this.autoTimer) { clearInterval(this.autoTimer); this.autoTimer = null; }
+      if (enabled) this.autoTimer = setInterval(() => this.refresh(), 15000);
+    },
     async refresh() {
       this.loading = true; this.error = ''; this.message = '';
       try {
