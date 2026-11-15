@@ -64,6 +64,8 @@ namespace FreePackages {
 				GlobalCache = await GlobalCache.CreateOrLoad().ConfigureAwait(false);
 			}
 
+			await ConnectUploader.Initialize().ConfigureAwait(false);
+
 			CardApps.Update();
 			ASFInfo.Update();
 		}
