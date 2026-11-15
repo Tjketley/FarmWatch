@@ -69,6 +69,17 @@ internal static class FarmWatchStatisticsStore {
 					List<FarmingSession>? sessions = JsonSerializer.Deserialize<List<FarmingSession>>(File.ReadAllText(FarmingPath), JsonOptions);
 					if (sessions != null) FarmingSessions = sessions.Where(item => item != null && item.StartedAtUtc != default).ToList();
 				}
+
+				// An active session from the previous process cannot be assumed to have
+				// continued farming while ASF was offline. Close it at startup so downtime
+				// is never counted as farming time.
+				DateTime recoveredAtUtc = DateTime.UtcNow;
+				bool recoveredSessions = false;
+				foreach (FarmingSession session in FarmingSessions.Where(item => !item.EndedAtUtc.HasValue)) {
+					session.EndedAtUtc = recoveredAtUtc;
+					recoveredSessions = true;
+				}
+				if (recoveredSessions) SaveFarmingLocked();
 			} catch (Exception e) {
 				ASF.ArchiLogger.LogGenericWarningException(e);
 			}
@@ -168,19 +179,25 @@ internal static class FarmWatchStatisticsStore {
 		};
 	}
 
+	private static double OverlapSeconds(FarmingSession session, DateTime periodStart, DateTime periodEnd) {
+		DateTime sessionEnd = session.EndedAtUtc ?? periodEnd;
+		DateTime start = session.StartedAtUtc > periodStart ? session.StartedAtUtc : periodStart;
+		DateTime end = sessionEnd < periodEnd ? sessionEnd : periodEnd;
+		return Math.Max(0, (end - start).TotalSeconds);
+	}
+
 	internal static object GetFarmingSummary() {
 		Initialize();
 		lock (Sync) {
 			DateTime now = DateTime.UtcNow;
 			DateTime today = now.Date;
 			DateTime month = new(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-			double SecondsFor(Func<FarmingSession, bool> predicate) => FarmingSessions.Where(predicate).Sum(item => Math.Max(0, ((item.EndedAtUtc ?? now) - item.StartedAtUtc).TotalSeconds));
 			return new {
 				totalSessions = FarmingSessions.Count,
 				activeSessions = FarmingSessions.Count(item => !item.EndedAtUtc.HasValue),
-				lifetimeSeconds = SecondsFor(_ => true),
-				todaySeconds = SecondsFor(item => item.StartedAtUtc >= today || (item.EndedAtUtc ?? now) >= today),
-				thisMonthSeconds = SecondsFor(item => item.StartedAtUtc >= month || (item.EndedAtUtc ?? now) >= month),
+				lifetimeSeconds = FarmingSessions.Sum(item => OverlapSeconds(item, DateTime.MinValue, now)),
+				todaySeconds = FarmingSessions.Sum(item => OverlapSeconds(item, today, now)),
+				thisMonthSeconds = FarmingSessions.Sum(item => OverlapSeconds(item, month, now)),
 				uniqueGames = FarmingSessions.SelectMany(item => item.AppIds).Distinct().Count()
 			};
 		}
