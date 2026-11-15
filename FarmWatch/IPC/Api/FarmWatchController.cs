@@ -140,6 +140,37 @@ public sealed class FarmWatchController : ArchiController {
 	}
 
 
+	[HttpPost("ConfigureBot")]
+	[ProducesResponseType((int) HttpStatusCode.OK)]
+	[ProducesResponseType((int) HttpStatusCode.BadRequest)]
+	[ProducesResponseType((int) HttpStatusCode.NotFound)]
+	public async Task<ActionResult<object>> ConfigureBot([FromBody] FarmWatchConfigureBotRequest request) {
+		if (request == null || string.IsNullOrWhiteSpace(request.BotName)) return BadRequest(new { error = "A bot name is required." });
+		Bot? bot = Bot.BotsReadOnly?.Values.FirstOrDefault(item => item.BotName.Equals(request.BotName, StringComparison.OrdinalIgnoreCase));
+		if (bot == null) return NotFound(new { error = "The requested ASF bot was not found." });
+
+		string configPath = Bot.GetFilePath(bot.BotName, Bot.EFileType.Config);
+		string temporaryPath = configPath + ".farmwatch.tmp";
+		try {
+			if (!System.IO.File.Exists(configPath)) return NotFound(new { error = "The bot configuration file was not found." });
+			JsonNode? parsed = JsonNode.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false));
+			if (parsed is not JsonObject config) return BadRequest(new { error = "The bot configuration JSON root is not an object." });
+			bool changed = false;
+			if (config["EnableFreePackages"]?.GetValue<bool>() != true) { config["EnableFreePackages"] = true; changed = true; }
+			if (config["FarmWatchAutoClaimEnabled"] == null) { config["FarmWatchAutoClaimEnabled"] = false; changed = true; }
+			if (changed) {
+				await System.IO.File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
+				System.IO.File.Move(temporaryPath, configPath, true);
+			}
+			FarmWatchDiagnostics.Record("settings", "FarmWatch bot configuration added. Auto-claim remains disabled until explicitly enabled.", bot.BotName, "success");
+			return Ok(new { configured = true, changed, restartRequired = changed, message = changed ? "FarmWatch has been added. Restart this bot to load the plugin." : "This bot is already configured for FarmWatch." });
+		} catch (Exception e) {
+			try { if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath); } catch { }
+			FarmWatchDiagnostics.Record("settings", "Could not configure FarmWatch for this bot.", bot.BotName, "error", e.Message);
+			return BadRequest(new { error = "Could not update bot configuration: " + e.Message });
+		}
+	}
+
 	[HttpPost("ConfigureAllBots")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	public async Task<ActionResult<object>> ConfigureAllBots() {
@@ -244,4 +275,8 @@ public sealed class FarmWatchConnectRequest {
 	public bool Enabled { get; set; }
 	public string? Endpoint { get; set; }
 	public string? Token { get; set; }
+}
+
+public sealed class FarmWatchConfigureBotRequest {
+	public string? BotName { get; set; }
 }
