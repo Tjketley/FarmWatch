@@ -132,4 +132,4 @@ printf '%s\n' "$ASF_UI_COMMIT" > "$OUTPUT/ASF-ui-UPSTREAM-COMMIT"
 test -f "$OUTPUT/index.html"
 test -f "$OUTPUT/farmwatch-mark.svg"
 # The UI is bundled into the plugin's www directory and served by ASF via IWebInterface.
-printf '%s\\n' "Bundled FarmWatch ASF-ui $ASF_UI_COMMIT" > "$OUTPUT/BUILD-INFO.txt"
+printf '%s\n' "Bundled FarmWatch ASF-ui $ASF_UI_COMMIT" > "$OUTPUT/BUILD-INFO.txt"
