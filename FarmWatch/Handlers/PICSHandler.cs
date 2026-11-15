@@ -15,7 +15,9 @@ namespace FreePackages {
 
 		internal static void OnPICSChanges(uint currentChangeNumber, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> appChanges, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> packageChanges) {
 			if (FreePackages.GlobalCache == null) {
-				throw new InvalidOperationException(nameof(GlobalCache));
+				ASF.ArchiLogger.LogGenericWarning("FarmWatch skipped a PICS change because the global cache is not initialized.");
+				FarmWatchDiagnostics.Record("pics", "PICS change skipped because the global cache is not initialized.", level: "warning");
+				return;
 			}
 
 			if (currentChangeNumber <= FreePackages.GlobalCache.LastChangeNumber) {
@@ -37,7 +39,9 @@ namespace FreePackages {
 			}
 
 			if (FreePackages.GlobalCache == null) {
-				throw new InvalidOperationException(nameof(GlobalCache));
+				ASF.ArchiLogger.LogGenericWarning("FarmWatch skipped PICS restart recovery because the global cache is not initialized.");
+				FarmWatchDiagnostics.Record("pics", "PICS restart recovery skipped because the global cache is not initialized.", level: "warning");
+				return;
 			}
 
 			uint oldChangeNumber = FreePackages.GlobalCache.LastChangeNumber;
