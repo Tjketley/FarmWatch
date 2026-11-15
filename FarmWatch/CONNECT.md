@@ -32,7 +32,7 @@ To disable uploads:
 }
 ```
 
-Disabling the uploader stops network activity. Already queued uploads remain on disk and are retained if Connect is re-enabled.
+Disabling the uploader stops scheduled uploads after any in-flight request completes. Already queued uploads remain on disk and are retained if Connect is re-enabled.
 
 ## Status
 
