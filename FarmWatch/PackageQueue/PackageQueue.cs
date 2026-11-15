@@ -111,6 +111,9 @@ namespace FreePackages {
 
 			FarmWatchDiagnostics.Record("steam", $"Sending Steam activation/removal request for {package.Type}/{package.ID}.", Bot.BotName, "warning");
 			EResult result = await ProcessPackage(package).ConfigureAwait(false);
+			if (result == EResult.OK && package.Type is EPackageType.App or EPackageType.Sub) {
+				FarmWatchStatisticsStore.RecordSuccessfulClaim(Bot.BotName, package.Type, package.ID, DateTime.UtcNow);
+			}
 			FarmWatchDiagnostics.Record("steam", $"Steam returned {result} for {package.Type}/{package.ID}.", Bot.BotName, result == EResult.OK || result == EResult.AlreadyOwned ? "success" : "warning");
 
 			{
