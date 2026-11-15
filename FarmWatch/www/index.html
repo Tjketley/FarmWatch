@@ -7,33 +7,52 @@
 <style>
 :root{color-scheme:dark;--bg:#101317;--panel:#191f25;--line:#2b343d;--text:#edf2f5;--muted:#9aa8b3;--accent:#00e676;--accent-soft:#123b2b;--warn:#e4bd72}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:900px;margin:0 auto;padding:38px 22px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:22px}.brand{display:flex;align-items:center;gap:14px}.brand img{width:58px;height:58px;border-radius:12px;border:1px solid var(--line)}
+main{max-width:1240px;margin:0 auto;padding:30px 28px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:22px}.brand{display:flex;align-items:center;gap:14px}.brand img{width:58px;height:58px;border-radius:12px;border:1px solid var(--line)}
 h1{font-size:28px;letter-spacing:-.04em;margin:0;color:var(--accent)}h2{font-size:16px;margin:0 0 14px}.sub,.muted{color:var(--muted)}.version{font:12px ui-monospace,monospace;color:var(--muted)}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-top:18px}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.metric{padding:15px;border:1px solid var(--line);border-radius:9px}.metric strong{display:block;font-size:19px;margin-top:5px}
-.status{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px}.dot{width:8px;height:8px;border-radius:50%;background:#78848e}.dot.on{background:var(--accent)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin-top:18px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}.metric{padding:15px;border:1px solid var(--line);border-radius:9px}.metric strong{display:block;font-size:25px;letter-spacing:-.04em;margin-top:7px}
+.nav{display:flex;gap:8px;overflow:auto;padding:16px 0 4px;position:sticky;top:0;background:var(--bg);z-index:5}.nav a{white-space:nowrap;text-decoration:none;color:var(--muted);padding:9px 13px;border:1px solid transparent;border-radius:8px;font-size:13px}.nav a:hover,.nav a.active{color:var(--accent);background:var(--accent-soft);border-color:#087f4b}.section-kicker{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);font-weight:700;margin-bottom:6px}.stat-meta{color:var(--muted);font-size:12px;margin-top:5px}.stat-value{font-size:28px;font-weight:700;letter-spacing:-.05em}.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.stat-card{background:#141a20;border:1px solid var(--line);border-radius:11px;padding:16px}.activity-row{display:grid;grid-template-columns:1fr auto;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.activity-row:first-child{border-top:0}.status{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px}.dot{width:8px;height:8px;border-radius:50%;background:#78848e}.dot.on{background:var(--accent)}
 .bot{display:flex;justify-content:space-between;gap:15px;padding:13px 0;border-top:1px solid var(--line)}.bot:first-of-type{border-top:0}
 .notice{border-left:3px solid var(--accent);padding:10px 13px;background:var(--accent-soft);color:#b9f6d4;border-radius:4px;font-size:13px}
 button{background:#123b2b;color:var(--text);border:1px solid #087f4b;padding:9px 13px;border-radius:7px;cursor:pointer}button:hover{background:#18583d}.debug-toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.debug-output{background:#0b0f12;border:1px solid var(--line);border-radius:8px;padding:13px;max-height:520px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;color:#c9f7dc}.debug-log{max-height:180px;overflow:auto;font:12px/1.5 ui-monospace,monospace;color:var(--muted)}.debug-log div{padding:5px 0;border-bottom:1px solid var(--line)}.debug-label{font-size:12px;color:var(--muted)}
-@media(max-width:600px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+@media(max-width:600px){.grid{grid-template-columns:1fr}main{padding:20px 14px}.top{align-items:flex-start;flex-direction:column}.panel{padding:17px}}
 </style>
 </head>
 <body><main>
 <header class="top"><div class="brand"><img src="farmwatch-mark.svg" alt="FarmWatch eye and shield logo"><div><h1>FarmWatch</h1><div class="sub">Steam promotion monitoring for ArchiSteamFarm</div></div></div><div class="version" id="version">Loading…</div></header>
-<section class="panel"><h2>Runtime overview</h2><div class="grid">
+<nav class="nav" aria-label="FarmWatch navigation">
+<a class="active" href="#overview">Overview</a><a href="#statistics">Statistics</a><a href="#bots">Bots</a><a href="#safety">Safety</a><a href="#diagnostics">Diagnostics</a>
+</nav>
+<section class="panel" id="statistics">
+<div class="section-kicker">Analytics</div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h2 style="font-size:21px;margin:0">Statistics</h2><div class="muted">Your FarmWatch activity, recorded locally by ASF.</div></div><button id="statsRefresh" type="button">Refresh stats</button></div>
+<div class="stat-grid" style="margin-top:18px">
+<div class="stat-card"><div class="muted">Claims</div><div class="stat-value" id="statClaims">—</div><div class="stat-meta" id="statClaimsMeta">Lifetime recorded</div></div>
+<div class="stat-card"><div class="muted">Farming time</div><div class="stat-value" id="statFarming">—</div><div class="stat-meta" id="statFarmingMeta">Lifetime recorded</div></div>
+<div class="stat-card"><div class="muted">Completed trades</div><div class="stat-value" id="statTrades">—</div><div class="stat-meta" id="statTradesMeta">Live callbacks only</div></div>
+<div class="stat-card"><div class="muted">Unique games farmed</div><div class="stat-value" id="statGames">—</div><div class="stat-meta">Across recorded sessions</div></div>
+</div>
+<div class="grid" style="margin-top:14px">
+<div class="stat-card"><div class="section-kicker">Claims breakdown</div><div class="activity-row"><span>Free-to-Keep packages</span><strong id="statPackages">—</strong></div><div class="activity-row"><span>App entitlements / DLC</span><strong id="statDlc">—</strong></div><div class="activity-row"><span>Today</span><strong id="statClaimsToday">—</strong></div><div class="activity-row"><span>This month</span><strong id="statClaimsMonth">—</strong></div></div>
+<div class="stat-card"><div class="section-kicker">Farming & trading</div><div class="activity-row"><span>Active farming sessions</span><strong id="statActiveSessions">—</strong></div><div class="activity-row"><span>Farming today</span><strong id="statFarmingToday">—</strong></div><div class="activity-row"><span>Trades today</span><strong id="statTradesToday">—</strong></div><div class="activity-row"><span>Items sent / received</span><strong id="statItems">—</strong></div></div>
+</div>
+<div class="stat-card" style="margin-top:14px"><div class="section-kicker">Recent claims</div><div id="recentClaims" class="muted">Loading statistics…</div></div>
+<div class="stat-meta" id="statsUpdated" style="margin-top:12px">Statistics not loaded yet.</div>
+</section>
+<section class="panel" id="overview"><h2>Runtime overview</h2><div class="grid">
 <div class="metric"><span class="muted">Global auto-claim</span><strong id="global">—</strong></div>
 <div class="metric"><span class="muted">Operating mode</span><strong id="mode">—</strong></div>
 </div><p class="notice" style="margin:16px 0 0">Safety first: auto-claim is disabled by default. Observe-only mode monitors eligible promotions without requesting Steam licences.</p></section>
-<section class="panel"><h2>Managed bots</h2>
+<section class="panel" id="bots"><h2>Managed bots</h2>
 <div class="debug-toolbar" style="margin-bottom:12px"><button id="configureAllBots" type="button">Configure all bots</button><span class="muted">Adds the FarmWatch module settings to every loaded bot's JSON. Auto-claim stays disabled by default.</span></div>
 <div id="bots" class="muted">Loading bot status…</div></section>
-<section class="panel"><h2>Safety settings</h2>
+<section class="panel" id="safety"><h2>Safety settings</h2>
 <div class="bot"><div><strong>Observe-only mode</strong><div class="muted">Monitor verified promotions without claiming licences. Keep enabled while testing.</div></div><input id="observeOnly" type="checkbox" checked></div>
 <div class="bot"><div><strong>Global auto-claim</strong><div class="muted">Master switch. Requires observe-only to be off and a bot switch enabled.</div></div><input id="globalAutoClaim" type="checkbox"></div>
 <p class="notice">Changing these settings does not bypass FarmWatch's Free-to-Keep verification, ownership checks, or final activation safety gate.</p>
 <div id="saveMessage" class="muted" role="status" style="margin-top:12px"></div>
 </section>
-<section class="panel" id="debugPanel">
+<section class="panel" id="debugPanel"><span id="diagnostics" aria-hidden="true"></span>
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h2 style="margin-bottom:3px">Developer diagnostics</h2><div class="muted">Live backend snapshot, queue internals, cache counts and dashboard request errors.</div></div><span class="version" id="debugUpdated">Not loaded</span></div>
 <div class="debug-toolbar" style="margin:15px 0"><button id="debugRefresh" type="button">Refresh diagnostics</button><button id="debugCopy" type="button">Copy report</button><label class="debug-label"><input id="debugAuto" type="checkbox"> Auto-refresh every 15 seconds</label></div>
 <div id="debugMessage" class="muted" role="status" style="margin-bottom:10px">Diagnostics have not been loaded.</div>
@@ -121,6 +140,43 @@ async function loadDiagnostics(){
  }
 }
 
+function formatDuration(seconds){
+ const total=Math.max(0,Math.floor(Number(seconds)||0));const d=Math.floor(total/86400),h=Math.floor((total%86400)/3600),m=Math.floor((total%3600)/60);
+ return d?d+'d '+h+'h':h?h+'h '+m+'m':m+'m';
+}
+async function loadStatistics(){
+ $('statsUpdated').textContent='Loading statistics…';
+ try{
+  const response=await fetch('/Api/FarmWatch/Statistics?limit=12',{credentials:'same-origin',headers:{'Accept':'application/json'}});
+  if(!response.ok)throw new Error('ASF returned HTTP '+response.status);
+  const data=await response.json(),c=data.claims||{},f=data.farming||{},t=data.trades||{};
+  $('statClaims').textContent=Number(c.total||0).toLocaleString();
+  $('statClaimsMeta').textContent=Number(c.today||0)+' today · '+Number(c.thisMonth||0)+' this month';
+  $('statFarming').textContent=formatDuration(f.lifetimeSeconds);
+  $('statFarmingMeta').textContent=Number(f.totalSessions||0)+' recorded sessions';
+  $('statTrades').textContent=Number(t.completedTrades||0).toLocaleString();
+  $('statTradesMeta').textContent='History: live callbacks only';
+  $('statGames').textContent=Number(f.uniqueGames||0).toLocaleString();
+  $('statPackages').textContent=Number(c.freeToKeepPackages||0).toLocaleString();
+  $('statDlc').textContent=Number(c.freeDlcApps||0).toLocaleString();
+  $('statClaimsToday').textContent=Number(c.today||0).toLocaleString();
+  $('statClaimsMonth').textContent=Number(c.thisMonth||0).toLocaleString();
+  $('statActiveSessions').textContent=Number(f.activeSessions||0).toLocaleString();
+  $('statFarmingToday').textContent=formatDuration(f.todaySeconds);
+  $('statTradesToday').textContent=Number(t.today||0).toLocaleString();
+  $('statItems').textContent=Number(t.itemsSent||0).toLocaleString()+' / '+Number(t.itemsReceived||0).toLocaleString();
+  const host=$('recentClaims');host.innerHTML='';
+  const claims=c.recent||[];
+  if(!claims.length){host.textContent='No successful claims have been recorded yet.';}
+  for(const item of claims){
+   const row=document.createElement('div');row.className='activity-row';
+   const label=document.createElement('span');label.textContent=(item.targetType||'Package')+' #'+item.targetId;
+   const meta=document.createElement('span');meta.className='muted';meta.textContent=new Date(item.claimedAtUtc).toLocaleString();
+   row.append(label,meta);host.append(row);
+  }
+  $('statsUpdated').textContent='Updated '+new Date(data.generatedAtUtc).toLocaleString()+' · All times calculated from local ASF event history.';
+ }catch(error){$('statsUpdated').textContent='Statistics unavailable: '+error.message;debugRecord('Statistics request failed',error.message);}
+}
 async function saveSettings(payload){
  const response=await fetch('/Api/FarmWatch/Settings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});
  const result=await response.json().catch(()=>({}));debugRecord('POST /Api/FarmWatch/Settings',response.status);if(!response.ok)throw new Error(result.error||('ASF returned HTTP '+response.status));$('saveMessage').textContent='Settings saved.';await load();
@@ -170,6 +226,8 @@ $('configureAllBots').addEventListener('click',async()=>{
 });
 
 $('refresh').addEventListener('click',load);
+$('statsRefresh').addEventListener('click',loadStatistics);
+for(const link of document.querySelectorAll('.nav a'))link.addEventListener('click',()=>{document.querySelectorAll('.nav a').forEach(item=>item.classList.remove('active'));link.classList.add('active');});
 $('debugRefresh').addEventListener('click',loadDiagnostics);
 $('eventRefresh').addEventListener('click',loadBackendEvents);
 $('eventLevel').addEventListener('change',renderBackendEvents);
@@ -182,5 +240,5 @@ $('debugAuto').addEventListener('change',event=>{
  if(debugTimer){clearInterval(debugTimer);debugTimer=null;}
  if(event.target.checked){loadDiagnostics();debugTimer=setInterval(loadDiagnostics,15000);}
 });
-$('refresh').addEventListener('click',load);load();
+$('refresh').addEventListener('click',load);load();loadStatistics();
 </script></body></html>
