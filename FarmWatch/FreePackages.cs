@@ -14,8 +14,11 @@ using ArchiSteamFarm.Web.GitHub.Data;
 
 namespace FreePackages {
 	[Export(typeof(IPlugin))]
-	public sealed class FreePackages : IASF, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand2, IGitHubPluginUpdates, IBotCardsFarmerInfo, IBotTradeOfferResults {
+	public sealed class FreePackages : IASF, IWebInterface, IBotModules, ISteamPICSChanges, IBotSteamClient, IBotConnection, IBotCommand2, IGitHubPluginUpdates, IBotCardsFarmerInfo, IBotTradeOfferResults {
 		public string Name => "FarmWatch";
+		// ASF serves the bundled FarmWatch UI from this plugin folder and updates it with the plugin DLL.
+		public string PhysicalPath => "www";
+		public string WebPath => "/";
 		public string RepositoryName => "Tjketley/FarmWatch-2";
 		public Version Version => typeof(FreePackages).Assembly.GetName().Version ?? new Version("0");
 
