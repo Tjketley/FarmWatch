@@ -48,7 +48,9 @@ FarmWatch sends the WatchFarm Connect v1 envelope:
 - `instance_id`: stable random identifier generated once and stored in FarmWatch settings
 - `recorded_at`: UTC timestamp
 - `statistics`: aggregate FarmWatch counters and state
-- `claims`: an array of successful claim events with a stable `claim_id`, `target_type` (`App` or `Sub`), `target_id`, UTC `claimed_at` timestamp, and `source`
+- `claims`: up to 500 of the most recent successful claim events, each with a stable `claim_id`, `target_type` (`App` or `Sub`), `target_id`, UTC `claimed_at` timestamp, and `source`
+
+The uploader sends the most recent 500 claim events per snapshot. The complete claim ledger remains local in `FarmWatch.statistics.json`; the receiver independently deduplicates each event by `instance_id` + `claim_id`.
 
 The current statistics payload includes plugin version, global auto-claim and observe-only flags, PICS change number, bot totals/connection/configuration counts, queue size, changed app/package counts, newly owned and seen package counts, ignored apps, waitlisted playtests, promotion evidence, activation-cache count, last activation time, durable FarmWatch claim totals (Free-to-Keep packages, free-DLC apps, today and this month), and farming-session totals (session count, active sessions, tracked seconds and unique games queued at session start).
 
@@ -63,6 +65,7 @@ Claim events include package/app target IDs and timestamps but no bot name. No S
 - HTTPS only; requests use `Authorization: Bearer` and JSON.
 - A successful `{ "ok": true }` response removes that upload from the outbox.
 - Timeouts, network errors, non-success HTTP responses and invalid acknowledgements retain the same upload UUID for retry.
+- The receiver accepts a maximum of 500 claim events and a 256 KB request body per snapshot.
 - Up to 24 snapshots are retained. When the outbox is full, new snapshots are paused rather than deleting unsent data.
 - Repeated uploads are safe because the WordPress receiver deduplicates by `instance_id` and `upload_id`.
 
