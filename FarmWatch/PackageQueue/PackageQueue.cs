@@ -67,6 +67,7 @@ namespace FreePackages {
 			if ((package.Type is EPackageType.App or EPackageType.Sub or EPackageType.Playtest) &&
 				!FreePackages.FarmWatchObserveOnly &&
 				(!FreePackages.FarmWatchAutoClaimEnabled || !FarmWatchEnabledForBot)) {
+				FarmWatchDiagnostics.Record("queue", $"Paused {package.Type}/{package.ID}: auto-claim switches are not all enabled.", Bot.BotName, "warning");
 				UpdateTimer(DateTime.Now.AddMinutes(1));
 				return;
 			}
@@ -74,6 +75,7 @@ namespace FreePackages {
 			{
 				DateTime? waitUntil = await BeforeProcessing(package).ConfigureAwait(false);
 				if (waitUntil != null) {
+					FarmWatchDiagnostics.Record("queue", $"Deferred {package.Type}/{package.ID} by pre-processing check until {waitUntil.Value.ToUniversalTime():O}.", Bot.BotName, "warning");
 					UpdateTimer(waitUntil.Value);
 
 					return;
@@ -86,6 +88,7 @@ namespace FreePackages {
 				// A disabled switch pauses the queue without discarding candidates. Re-enabling
 				// both switches will still require fresh evidence at this final gate.
 				if (package.Type == EPackageType.Playtest || !BotCache.HasCurrentClaimEvidence(package)) {
+					FarmWatchDiagnostics.Record("eligibility", $"Rejected {package.Type}/{package.ID}: current permanent Free-to-Keep evidence is missing, stale, or this is a playtest.", Bot.BotName, "warning");
 					Bot.ArchiLogger.LogGenericInfo($"FarmWatch rejected activation for {package.Type}/{package.ID}: verified Free-to-Keep evidence missing or stale.");
 					BotCache.RemovePackage(package);
 					UpdateTimer(DateTime.Now.AddSeconds(1));
@@ -98,6 +101,7 @@ namespace FreePackages {
 					FarmWatchEnabledForBot,
 					package.Type,
 					BotCache.HasCurrentClaimEvidence(package))) {
+					FarmWatchDiagnostics.Record("eligibility", $"Verified candidate {package.Type}/{package.ID}; observe-only prevented a Steam licence request.", Bot.BotName);
 					Bot.ArchiLogger.LogGenericInfo($"FarmWatch observe-only: verified claim candidate {package.Type}/{package.ID}; no licence activation attempted.");
 					BotCache.RemovePackage(package);
 					UpdateTimer(DateTime.Now.AddSeconds(1));
@@ -105,7 +109,9 @@ namespace FreePackages {
 				}
 			}
 
+			FarmWatchDiagnostics.Record("steam", $"Sending Steam activation/removal request for {package.Type}/{package.ID}.", Bot.BotName, "warning");
 			EResult result = await ProcessPackage(package).ConfigureAwait(false);
+			FarmWatchDiagnostics.Record("steam", $"Steam returned {result} for {package.Type}/{package.ID}.", Bot.BotName, result == EResult.OK || result == EResult.AlreadyOwned ? "success" : "warning");
 
 			{
 				DateTime? waitUntil = HandleResult(package, result);
