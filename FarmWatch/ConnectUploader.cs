@@ -173,10 +173,12 @@ internal static class ConnectUploader {
 		if (!await Gate.WaitAsync(0).ConfigureAwait(false)) return;
 
 		try {
-			if (Pending.Count == 0) {
+			if (Pending.Count < MaximumPendingUploads) {
+				// Capture each scheduled interval while offline, retaining the newest
+				// 24 snapshots in FIFO order until the receiver acknowledges them.
 				Pending.Add(CreateSnapshot());
 				await SaveOutbox().ConfigureAwait(false);
-			} else if (Pending.Count >= MaximumPendingUploads) {
+			} else {
 				LastStatus = "Outbox full; preserving pending uploads until connection recovers";
 			}
 
