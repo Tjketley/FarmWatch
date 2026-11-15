@@ -113,6 +113,8 @@ jobs:
           tag: ${{ github.ref_name }}
           bodyFile: .github/RELEASE_TEMPLATE.md
           token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
+          replacesArtifacts: true
           makeLatest: true
           prerelease: false
           draft: false
