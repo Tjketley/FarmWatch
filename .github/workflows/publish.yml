@@ -20,7 +20,7 @@ jobs:
       - name: Validate tagged plugin version
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         run: |
-          project_version=$(sed -n 's/.*<Version>\\([^<]*\\)<\\/Version>.*/\\1/p' Directory.Build.props | head -n 1)
+          project_version=$(python3 -c 'import re; print(re.search(r"<Version>([^<]+)</Version>", open("Directory.Build.props").read()).group(1))')
           if [[ "$project_version" != "$GITHUB_REF_NAME" ]]; then
             echo "Release tag $GITHUB_REF_NAME does not match Directory.Build.props version $project_version."
             exit 1
