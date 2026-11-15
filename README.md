@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/farmwatch-mark.svg" alt="FarmWatch eye and shield logo" width="150"></p>
+
 # FarmWatch
 
 **Steam Free-to-Keep monitoring and guarded licence claiming for ArchiSteamFarm.**
