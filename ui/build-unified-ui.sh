@@ -58,6 +58,10 @@ needle = '        <NavigationLink :name="$t(\'bots\')" icon="users" :to="{ name:
 assert needle in text, "ASF-ui navigation anchor changed"
 text = text.replace(needle, needle + '\n        <NavigationLink name="FarmWatch" icon="eye" :to="{ name: \'farmwatch\' }"></NavigationLink>', 1)
 nav.write_text(text)
+
+brand = root / "src/components/Navigation/Brand.vue"
+text = brand.read_text().replace('<b>A</b>SF', '<b>F</b>W').replace('<b>Archi</b>SteamFarm', '<b>Farm</b>Watch')
+brand.write_text(text)
 PY
 
 cd "$WORK"
