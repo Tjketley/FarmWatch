@@ -165,8 +165,9 @@ internal static class ConnectUploader {
 		try {
 			if (Pending.Count == 0) {
 				Pending.Add(CreateSnapshot());
-				while (Pending.Count > MaximumPendingUploads) Pending.RemoveAt(0);
 				await SaveOutbox().ConfigureAwait(false);
+			} else if (Pending.Count >= MaximumPendingUploads) {
+				LastStatus = "Outbox full; preserving pending uploads until connection recovers";
 			}
 
 			while (Pending.Count > 0) {
