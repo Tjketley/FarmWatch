@@ -10,6 +10,7 @@ using ArchiSteamFarm.Plugins.Interfaces;
 using SteamKit2;
 using System.Text.Json;
 using ArchiSteamFarm.Helpers.Json;
+using ArchiSteamFarm.Web.GitHub.Data;
 
 namespace FreePackages {
 	[Export(typeof(IPlugin))]
@@ -17,6 +18,19 @@ namespace FreePackages {
 		public string Name => "FarmWatch";
 		public string RepositoryName => "Tjketley/FarmWatch-2";
 		public Version Version => typeof(FreePackages).Assembly.GetName().Version ?? new Version("0");
+
+		// Releases contain both the plugin and standalone ASF UI ZIP. Select the
+		// versioned plugin asset explicitly so ASF never tries to install the UI.
+		public Task<ReleaseAsset?> GetTargetReleaseAsset(Version asfVersion, string asfVariant, Version newPluginVersion, IReadOnlyCollection<ReleaseAsset> releaseAssets, CancellationToken cancellationToken = default) {
+			ArgumentNullException.ThrowIfNull(asfVersion);
+			ArgumentException.ThrowIfNullOrEmpty(asfVariant);
+			ArgumentNullException.ThrowIfNull(newPluginVersion);
+			ArgumentNullException.ThrowIfNull(releaseAssets);
+
+			string expectedAssetName = $"FarmWatch-{newPluginVersion}.zip";
+			ReleaseAsset? targetAsset = releaseAssets.FirstOrDefault(asset => asset.Name.Equals(expectedAssetName, StringComparison.OrdinalIgnoreCase));
+			return Task.FromResult(targetAsset);
+		}
 		internal static GlobalCache? GlobalCache;
 		private static readonly object GlobalCacheLock = new();
 		private static Task<GlobalCache>? GlobalCacheLoadTask;
