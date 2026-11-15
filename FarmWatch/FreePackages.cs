@@ -54,6 +54,7 @@ namespace FreePackages {
 			}
 			FarmWatchAutoClaimEnabled = FarmWatchSettings.Current.AutoClaimEnabled;
 			FarmWatchObserveOnly = FarmWatchSettings.Current.ObserveOnly;
+			FarmWatchDiagnostics.Initialize();
 
 			ASF.ArchiLogger.LogGenericInfo("FarmWatch auto-claim global switch : " + FarmWatchAutoClaimEnabled.ToString());
 			ASF.ArchiLogger.LogGenericInfo("FarmWatch observe-only mode : " + FarmWatchObserveOnly.ToString());
