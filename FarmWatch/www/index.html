@@ -14,7 +14,7 @@ h1{font-size:28px;letter-spacing:-.04em;margin:0;color:var(--accent)}h2{font-siz
 .status{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px}.dot{width:8px;height:8px;border-radius:50%;background:#78848e}.dot.on{background:var(--accent)}
 .bot{display:flex;justify-content:space-between;gap:15px;padding:13px 0;border-top:1px solid var(--line)}.bot:first-of-type{border-top:0}
 .notice{border-left:3px solid var(--accent);padding:10px 13px;background:var(--accent-soft);color:#b9f6d4;border-radius:4px;font-size:13px}
-button{background:#123b2b;color:var(--text);border:1px solid #087f4b;padding:9px 13px;border-radius:7px;cursor:pointer}button:hover{background:#18583d}
+button{background:#123b2b;color:var(--text);border:1px solid #087f4b;padding:9px 13px;border-radius:7px;cursor:pointer}button:hover{background:#18583d}.debug-toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.debug-output{background:#0b0f12;border:1px solid var(--line);border-radius:8px;padding:13px;max-height:520px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;color:#c9f7dc}.debug-log{max-height:180px;overflow:auto;font:12px/1.5 ui-monospace,monospace;color:var(--muted)}.debug-log div{padding:5px 0;border-bottom:1px solid var(--line)}.debug-label{font-size:12px;color:var(--muted)}
 @media(max-width:600px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
 </style>
 </head>
@@ -24,20 +24,106 @@ button{background:#123b2b;color:var(--text);border:1px solid #087f4b;padding:9px
 <div class="metric"><span class="muted">Global auto-claim</span><strong id="global">—</strong></div>
 <div class="metric"><span class="muted">Operating mode</span><strong id="mode">—</strong></div>
 </div><p class="notice" style="margin:16px 0 0">Safety first: auto-claim is disabled by default. Observe-only mode monitors eligible promotions without requesting Steam licences.</p></section>
-<section class="panel"><h2>Managed bots</h2><div id="bots" class="muted">Loading bot status…</div></section>
+<section class="panel"><h2>Managed bots</h2>
+<div class="debug-toolbar" style="margin-bottom:12px"><button id="configureAllBots" type="button">Configure all bots</button><span class="muted">Adds the FarmWatch module settings to every loaded bot's JSON. Auto-claim stays disabled by default.</span></div>
+<div id="bots" class="muted">Loading bot status…</div></section>
 <section class="panel"><h2>Safety settings</h2>
 <div class="bot"><div><strong>Observe-only mode</strong><div class="muted">Monitor verified promotions without claiming licences. Keep enabled while testing.</div></div><input id="observeOnly" type="checkbox" checked></div>
 <div class="bot"><div><strong>Global auto-claim</strong><div class="muted">Master switch. Requires observe-only to be off and a bot switch enabled.</div></div><input id="globalAutoClaim" type="checkbox"></div>
 <p class="notice">Changing these settings does not bypass FarmWatch's Free-to-Keep verification, ownership checks, or final activation safety gate.</p>
 <div id="saveMessage" class="muted" role="status" style="margin-top:12px"></div>
 </section>
+<section class="panel" id="debugPanel">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h2 style="margin-bottom:3px">Developer diagnostics</h2><div class="muted">Live backend snapshot, queue internals, cache counts and dashboard request errors.</div></div><span class="version" id="debugUpdated">Not loaded</span></div>
+<div class="debug-toolbar" style="margin:15px 0"><button id="debugRefresh" type="button">Refresh diagnostics</button><button id="debugCopy" type="button">Copy report</button><label class="debug-label"><input id="debugAuto" type="checkbox"> Auto-refresh every 15 seconds</label></div>
+<div id="debugMessage" class="muted" role="status" style="margin-bottom:10px">Diagnostics have not been loaded.</div>
+<h2>Backend snapshot</h2><pre id="debugOutput" class="debug-output">Press “Refresh diagnostics” to inspect FarmWatch internals.</pre>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px"><h2 style="margin:0">Backend event log</h2><div class="debug-toolbar"><select id="eventLevel" aria-label="Filter event severity"><option value="all">All events</option><option value="warning">Warnings</option><option value="error">Errors</option><option value="success">Success</option></select><button id="eventRefresh" type="button">Refresh events</button></div></div>
+<div class="debug-label" id="eventSummary" style="margin:8px 0">Recent backend decisions, Steam responses and crash exceptions. Events are written to disk and restored after ASF restarts.</div>
+<div id="backendEvents" class="debug-log" style="max-height:420px"></div>
+<h2 style="margin-top:18px">Recent dashboard requests & errors</h2><div id="debugLog" class="debug-log">No requests recorded yet.</div>
+</section>
 <footer style="display:flex;justify-content:space-between;align-items:center;margin-top:18px"><span class="muted" id="updated">—</span><button id="refresh" type="button">Refresh status</button></footer>
 </main>
 <script>
 const $=id=>document.getElementById(id);
+const debugEvents=[];
+let latestDiagnostics=null;
+let debugTimer=null;
+function debugRecord(message,detail=''){
+ debugEvents.unshift({time:new Date().toLocaleTimeString(),message,detail:String(detail||'')});
+ if(debugEvents.length>60)debugEvents.pop();
+ $('debugLog').innerHTML='';
+ for(const item of debugEvents){
+  const row=document.createElement('div');
+  row.textContent='['+item.time+'] '+item.message+(item.detail?' — '+item.detail:'');
+  $('debugLog').append(row);
+ }
+}
+window.addEventListener('error',event=>debugRecord('JavaScript error',event.message+' ('+event.filename+':'+event.lineno+')'));
+window.addEventListener('unhandledrejection',event=>debugRecord('Unhandled promise rejection',event.reason?.message||event.reason));
+let latestBackendEvents=[];
+function renderBackendEvents(){
+ const filter=$('eventLevel').value;
+ const entries=latestBackendEvents.filter(item=>filter==='all'||item.level===filter);
+ $('backendEvents').innerHTML='';
+ if(!entries.length){$('backendEvents').textContent='No matching backend events retained.';return;}
+ for(const item of entries){
+  const row=document.createElement('div');
+  row.style.padding='9px 0';
+  row.style.borderBottom='1px solid var(--line)';
+  const heading=document.createElement('div');
+  heading.style.display='flex';heading.style.flexWrap='wrap';heading.style.gap='8px';heading.style.alignItems='center';
+  const level=document.createElement('strong');
+  level.textContent=(item.level||'info').toUpperCase();
+  level.style.color=item.level==='error'?'#ff7777':item.level==='warning'?'var(--warn)':item.level==='success'?'var(--accent)':'var(--muted)';
+  const meta=document.createElement('span');
+  meta.className='debug-label';
+  meta.textContent=new Date(item.timestampUtc).toLocaleString()+' · '+(item.category||'runtime')+(item.bot?' · '+item.bot:'');
+  heading.append(level,meta);
+  const message=document.createElement('div');message.textContent=item.message||'';
+  row.append(heading,message);
+  if(item.details){const detail=document.createElement('div');detail.className='debug-label';detail.style.whiteSpace='pre-wrap';detail.textContent=item.details;row.append(detail);}
+  $('backendEvents').append(row);
+ }
+}
+async function loadBackendEvents(){
+ try{
+  const response=await fetch('/Api/FarmWatch/Events?limit=200',{credentials:'same-origin',headers:{'Accept':'application/json'}});
+  if(!response.ok)throw new Error('ASF returned HTTP '+response.status);
+  const data=await response.json();
+  latestBackendEvents=data.events||[];
+  $('eventSummary').textContent='Showing '+latestBackendEvents.length+' recent backend events. Persistent JSONL log survives ASF restarts; up to 500 recent events are restored into the dashboard.';
+  renderBackendEvents();
+ }catch(error){
+  debugRecord('Backend event log request failed',error.message);
+  $('backendEvents').textContent='Could not load backend events: '+error.message;
+ }
+}
+async function loadDiagnostics(){
+ $('debugMessage').textContent='Collecting backend diagnostics…';
+ const started=performance.now();
+ try{
+  const response=await fetch('/Api/FarmWatch/Diagnostics',{credentials:'same-origin',headers:{'Accept':'application/json'}});
+  const elapsed=Math.round(performance.now()-started);
+  const body=await response.text();
+  debugRecord('GET /Api/FarmWatch/Diagnostics',response.status+' · '+elapsed+' ms');
+  if(!response.ok)throw new Error('ASF returned HTTP '+response.status+': '+body.slice(0,500));
+  latestDiagnostics=JSON.parse(body);
+  $('debugOutput').textContent=JSON.stringify(latestDiagnostics,null,2);
+  await loadBackendEvents();
+  $('debugUpdated').textContent='Updated '+new Date().toLocaleTimeString();
+  $('debugMessage').textContent='Backend snapshot loaded. '+(latestDiagnostics.bots?.length||0)+' bot(s) inspected.';
+ }catch(error){
+  debugRecord('Diagnostics failed',error.message);
+  $('debugMessage').textContent='Could not load diagnostics: '+error.message;
+  $('debugOutput').textContent=error.stack||error.message;
+ }
+}
+
 async function saveSettings(payload){
  const response=await fetch('/Api/FarmWatch/Settings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});
- const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||('ASF returned HTTP '+response.status));$('saveMessage').textContent='Settings saved.';await load();
+ const result=await response.json().catch(()=>({}));debugRecord('POST /Api/FarmWatch/Settings',response.status);if(!response.ok)throw new Error(result.error||('ASF returned HTTP '+response.status));$('saveMessage').textContent='Settings saved.';await load();
 }
 async function load(){
  $('bots').textContent='Loading bot status…';
@@ -56,16 +142,44 @@ async function load(){
    const name=document.createElement('strong');name.textContent=bot.name;
    const state=document.createElement('span');state.className='status';
    const dot=document.createElement('i');dot.className='dot'+(bot.connected?' on':'');
-   const label=document.createElement('span');label.textContent=bot.connected?'Connected':'Disconnected';
-   const toggle=document.createElement('input');toggle.type='checkbox';toggle.checked=!!bot.autoClaimEnabled;toggle.setAttribute('aria-label','Enable auto-claim for '+bot.name);
+   const label=document.createElement('span');label.textContent=(bot.connected?'Connected':'Disconnected')+(bot.configured?' · FarmWatch ready':' · Not configured');
+   const toggle=document.createElement('input');toggle.type='checkbox';toggle.checked=!!bot.autoClaimEnabled;toggle.disabled=!bot.configured;toggle.setAttribute('aria-label','Enable auto-claim for '+bot.name);
    toggle.addEventListener('change',async()=>{try{if(toggle.checked&&!confirm('Enable auto-claim for '+bot.name+'? Global auto-claim must also be enabled and observe-only must be off.')){toggle.checked=false;return;}await saveSettings({botName:bot.name,botAutoClaimEnabled:toggle.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});
    const controls=document.createElement('span');controls.style.display='flex';controls.style.alignItems='center';controls.style.gap='10px';controls.append(label,toggle);
    state.append(dot,controls);row.append(name,state);$('bots').append(row);
   }
   $('updated').textContent='Updated '+new Date().toLocaleTimeString();
- }catch(error){$('bots').textContent='Could not load FarmWatch status: '+error.message;$('version').textContent='Status unavailable';}
+ }catch(error){debugRecord('Status request failed',error.message);$('bots').textContent='Could not load FarmWatch status: '+error.message;$('version').textContent='Status unavailable';}
 }
 $('observeOnly').addEventListener('change',async e=>{try{if(!e.target.checked&&!confirm('Turn off observe-only mode? FarmWatch may claim verified Free-to-Keep promotions if both auto-claim switches are enabled.')){e.target.checked=true;return;}await saveSettings({observeOnly:e.target.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});
 $('globalAutoClaim').addEventListener('change',async e=>{try{if(e.target.checked&&!confirm('Enable the global auto-claim master switch? Individual bot switches must also be enabled.')){e.target.checked=false;return;}await saveSettings({autoClaimEnabled:e.target.checked});}catch(error){$('saveMessage').textContent=error.message;load();}});
+
+$('configureAllBots').addEventListener('click',async()=>{
+ if(!confirm('Add the FarmWatch configuration entries to every loaded bot JSON? This enables the FarmWatch module for each bot, but leaves per-bot auto-claim disabled. The affected bots must be restarted before they appear as managed.'))return;
+ const button=$('configureAllBots');button.disabled=true;button.textContent='Configuring…';
+ try{
+  const response=await fetch('/Api/FarmWatch/ConfigureAllBots',{method:'POST',credentials:'same-origin',headers:{'Accept':'application/json'}});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(result.error||('ASF returned HTTP '+response.status));
+  const failures=(result.failed||[]);
+  $('saveMessage').textContent=result.message+' Configured: '+result.configured+', already configured: '+result.unchanged+', failed: '+failures.length+(failures.length?' — '+failures.join('; '):'');
+  debugRecord('POST /Api/FarmWatch/ConfigureAllBots','configured '+result.configured+', unchanged '+result.unchanged+', failed '+failures.length);
+  await load();
+ }catch(error){$('saveMessage').textContent='Could not configure bots: '+error.message;debugRecord('Bulk bot configuration failed',error.message);}
+ finally{button.disabled=false;button.textContent='Configure all bots';}
+});
+\n$('refresh').addEventListener('click',load);
+$('debugRefresh').addEventListener('click',loadDiagnostics);
+$('eventRefresh').addEventListener('click',loadBackendEvents);
+$('eventLevel').addEventListener('change',renderBackendEvents);
+$('debugCopy').addEventListener('click',async()=>{
+ const report={diagnostics:latestDiagnostics,backendEvents:latestBackendEvents,dashboardEvents:debugEvents};
+ try{await navigator.clipboard.writeText(JSON.stringify(report,null,2));$('debugMessage').textContent='Diagnostic report copied to clipboard.';}
+ catch(error){$('debugMessage').textContent='Clipboard unavailable: '+error.message;debugRecord('Copy failed',error.message);}
+});
+$('debugAuto').addEventListener('change',event=>{
+ if(debugTimer){clearInterval(debugTimer);debugTimer=null;}
+ if(event.target.checked){loadDiagnostics();debugTimer=setInterval(loadDiagnostics,15000);}
+});
 $('refresh').addEventListener('click',load);load();
 </script></body></html>

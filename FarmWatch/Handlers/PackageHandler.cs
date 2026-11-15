@@ -71,6 +71,7 @@ namespace FreePackages {
 				}
 
 				Handlers.TryAdd(bot.BotName, new PackageHandler(bot, botCache, filterConfigs, packageLimit, pauseWhilePlaying, pauseWhileFarming, farmWatchEnabled));
+				FarmWatchDiagnostics.Record("runtime", $"Bot handler initialised. Auto-claim for bot: {farmWatchEnabled}; filter count: {filterConfigs.Count}.", bot.BotName);
 			} finally {
 				AddHandlerSemaphore.Release();
 			}
@@ -157,8 +158,10 @@ namespace FreePackages {
 
 		internal async static Task HandleChanges() {
 			if (!await ProcessChangesSemaphore.WaitAsync(0).ConfigureAwait(false)) {
+				FarmWatchDiagnostics.Record("discovery", "Skipped overlapping PICS processing pass; another pass is already running.", level: "warning");
 				return;
 			}
+			FarmWatchDiagnostics.Record("discovery", "Started processing pending Steam PICS changes.");
 
 			try {
 				await IsReady().ConfigureAwait(false);
@@ -169,12 +172,15 @@ namespace FreePackages {
 				packageIDs.UnionWith(newOwnedPackageIDs);
 
 				if (appIDs.Count == 0 && packageIDs.Count == 0) {
+					FarmWatchDiagnostics.Record("discovery", "Processing pass finished: no pending app or package changes.");
 					return;
 				}
+				FarmWatchDiagnostics.Record("discovery", $"Fetching product metadata for {appIDs.Count} app IDs and {packageIDs.Count} package IDs.");
 
 				foreach ((HashSet<uint>? batchedAppIDs, HashSet<uint>? batchedPackageIDs) in ProductInfo.GetProductIDBatches(appIDs, packageIDs)) {
 					var productInfo = await ProductInfo.GetProductInfo(batchedAppIDs, batchedPackageIDs).ConfigureAwait(false);
 					if (productInfo == null) {
+						FarmWatchDiagnostics.Record("steam", "Steam PICS product-info request returned no result; IDs remain pending for a later retry.", level: "error");
 						continue;
 					}
 
@@ -197,6 +203,7 @@ namespace FreePackages {
 				).ConfigureAwait(false);
 
 				if (apps == null) {
+					FarmWatchDiagnostics.Record("steam", "App metadata could not be converted into filterable records.", level: "error");
 					ASF.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
 
 					return;
@@ -226,6 +233,7 @@ namespace FreePackages {
 				).ConfigureAwait(false);
 
 				if (packages == null) {
+					FarmWatchDiagnostics.Record("steam", "Package metadata could not be converted into filterable records.", level: "error");
 					ASF.ArchiLogger.LogGenericError(Strings.ProductInfoFetchFailed);
 
 					return;
@@ -283,11 +291,13 @@ namespace FreePackages {
 					PromotionEvidence evidence = PromotionEvidence.ForOwnedGameFreeDlc(app.ID, parentAppID, DateTime.UtcNow);
 					if (BotCache.AddPromotionEvidence(evidence) && BotCache.HasCurrentClaimEvidence(new Package(EPackageType.App, app.ID))) {
 						BotCache.AddPackage(new Package(EPackageType.App, app.ID, filterHash: PackageFilter.Hash));
+						FarmWatchDiagnostics.Record("queue", $"Queued verified free DLC app/{app.ID} for owned game/{parentAppID}.", Bot.BotName, "success");
 						Bot.ArchiLogger.LogGenericInfo($"FarmWatch queued free DLC app/{app.ID} for owned game/{parentAppID}.");
 					} else {
 						Bot.ArchiLogger.LogGenericWarning($"FarmWatch did not queue app/{app.ID}: owned-game free-DLC evidence failed validation.");
 					}
 				} else {
+					FarmWatchDiagnostics.Record("eligibility", $"Skipped app/{app.ID}: it was not verified as free DLC for a game this account owns.", Bot.BotName);
 					Bot.ArchiLogger.LogGenericDebug($"FarmWatch skipped app/{app.ID}: not verified as free DLC for an owned game.");
 				}
 			} finally {
@@ -307,6 +317,7 @@ namespace FreePackages {
 			try {
 				// Keep discovery and synthetic tests on the exact same eligibility policy.
 				if (!FarmWatchEligibilityPolicy.IsFreeToKeepPackage(package)) {
+					FarmWatchDiagnostics.Record("eligibility", $"Rejected sub/{package.ID}: metadata did not meet strict Free-to-Keep requirements.", Bot.BotName, "warning", $"billing={package.BillingType}; status={package.Status}; licence={package.LicenseType}; freePromotion={package.FreePromotion}; freeWeekend={package.FreeWeekend}; expiry={package.ExpiryTime}; apps={package.PackageContentIDs.Count}");
 					Bot.ArchiLogger.LogGenericDebug($"FarmWatch rejected sub/{package.ID}: package metadata did not meet the strict Free-to-Keep eligibility policy.");
 					return;
 				}
@@ -331,14 +342,17 @@ namespace FreePackages {
 				}
 
 				if (!PackageFilter.IsRedeemablePackage(package)) {
+					FarmWatchDiagnostics.Record("eligibility", $"Rejected sub/{package.ID}: package is not redeemable for this account/region.", Bot.BotName, "warning");
 					return;
 				}
 
 				if (!PackageFilter.IsWantedPackage(package)) {
+					FarmWatchDiagnostics.Record("filter", $"Filtered out sub/{package.ID}: it did not match this bot’s configured filters.", Bot.BotName);
 					return;
 				}
 
 				if (BotCache.AddPackage(new Package(EPackageType.Sub, package.ID, package.StartTime, filterHash: PackageFilter.Hash))) {
+					FarmWatchDiagnostics.Record("queue", $"Queued verified Free-to-Keep candidate sub/{package.ID}.", Bot.BotName, "success");
 					// Remove duplicates.  
 					// Whenever we're trying to activate an app and also an package for that app, get rid of the app.
 					// This is because the error messages for activating packages are more descriptive and useful.
