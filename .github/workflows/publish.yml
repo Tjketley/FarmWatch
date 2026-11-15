@@ -42,7 +42,7 @@ jobs:
           mkdir -p out/plugin-package
           cp "out/plugin/${PLUGIN_NAME}.dll" out/plugin-package/
           ( cd out/plugin/ && cp --parents ./*/${PLUGIN_NAME}.resources.dll ../plugin-package/ || : )
-          cp LICENSE README.md out/plugin-package/
+          cp LICENSE README.md FarmWatch/CONNECT.md out/plugin-package/
           test -f "out/plugin-package/${PLUGIN_NAME}.dll"
           if find out/plugin-package -maxdepth 1 -type d -name www | grep -q .; then
             echo "Plugin package must not contain the standalone UI."
@@ -97,6 +97,7 @@ jobs:
           unzip -Z1 "FarmWatch-${GITHUB_REF_NAME}.zip" > plugin-files.txt
           unzip -Z1 "FarmWatch-ASF-UI-${GITHUB_REF_NAME}.zip" > ui-files.txt
           grep -qx 'FarmWatch.dll' plugin-files.txt
+          grep -qx 'CONNECT.md' plugin-files.txt
           grep -qx 'index.html' ui-files.txt
           grep -qx 'farmwatch-mark.svg' ui-files.txt
           if grep -Eq '(^|/)www/|farmwatch-mark.svg' plugin-files.txt; then
