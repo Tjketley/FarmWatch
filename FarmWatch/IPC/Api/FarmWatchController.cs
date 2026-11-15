@@ -119,6 +119,56 @@ public sealed class FarmWatchController : ArchiController {
 	}
 
 
+	[HttpPost("ConfigureBot/{botName}")]
+	[ProducesResponseType((int) HttpStatusCode.OK)]
+	[ProducesResponseType((int) HttpStatusCode.NotFound)]
+	public async Task<ActionResult<object>> ConfigureBot(string botName) {
+		Bot? bot = Bot.BotsReadOnly?.Values.FirstOrDefault(candidate => string.Equals(candidate.BotName, botName, StringComparison.Ordinal));
+		if (bot == null) {
+			return NotFound(new { error = "Bot was not found in the loaded ASF bot list." });
+		}
+
+		string configPath = Bot.GetFilePath(bot.BotName, Bot.EFileType.Config);
+		string temporaryPath = configPath + ".farmwatch.tmp";
+		try {
+			if (!System.IO.File.Exists(configPath)) {
+				return NotFound(new { error = "Bot configuration file was not found." });
+			}
+
+			JsonNode? parsed = JsonNode.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false));
+			if (parsed is not JsonObject config) {
+				return BadRequest(new { error = "Bot config JSON root is not an object." });
+			}
+
+			bool changed = false;
+			if (config["EnableFreePackages"]?.GetValue<bool>() != true) {
+				config["EnableFreePackages"] = true;
+				changed = true;
+			}
+			if (config["FarmWatchAutoClaimEnabled"] == null) {
+				config["FarmWatchAutoClaimEnabled"] = false;
+				changed = true;
+			}
+
+			if (changed) {
+				await System.IO.File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
+				System.IO.File.Move(temporaryPath, configPath, true);
+				FarmWatchDiagnostics.Record("settings", "FarmWatch configuration added. Per-bot auto-claim remains disabled.", bot.BotName, "success");
+			}
+
+			return Ok(new {
+				configured = changed,
+				unchanged = !changed,
+				restartRequired = changed,
+				message = changed ? "FarmWatch configuration added. Restart this bot to load the module." : "FarmWatch configuration is already present."
+			});
+		} catch (Exception e) {
+			try { if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath); } catch { }
+			FarmWatchDiagnostics.Record("settings", "Could not update bot JSON for FarmWatch setup.", bot.BotName, "error", e.Message);
+			return StatusCode((int) HttpStatusCode.InternalServerError, new { error = e.Message });
+		}
+	}
+
 	[HttpPost("ConfigureAllBots")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	public async Task<ActionResult<object>> ConfigureAllBots() {
