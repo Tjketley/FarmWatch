@@ -35,13 +35,21 @@ namespace FreePackages {
 		}
 
 		public async Task OnASFInit(IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null) {
-			FarmWatchAutoClaimEnabled = additionalConfigProperties != null &&
+			bool configuredAutoClaim = additionalConfigProperties != null &&
 				additionalConfigProperties.TryGetValue("FarmWatchAutoClaimEnabled", out JsonElement autoClaimSetting) &&
 				autoClaimSetting.ValueKind == JsonValueKind.True;
-
- 			FarmWatchObserveOnly = additionalConfigProperties == null ||
+			bool configuredObserveOnly = additionalConfigProperties == null ||
 				!additionalConfigProperties.TryGetValue("FarmWatchObserveOnly", out JsonElement observeOnlySetting) ||
 				observeOnlySetting.ValueKind != JsonValueKind.False;
+
+			await FarmWatchSettings.Load().ConfigureAwait(false);
+			if (!FarmWatchSettings.Exists) {
+				FarmWatchSettings.Current.AutoClaimEnabled = configuredAutoClaim;
+				FarmWatchSettings.Current.ObserveOnly = configuredObserveOnly;
+				await FarmWatchSettings.Current.SetGlobal(configuredAutoClaim, configuredObserveOnly).ConfigureAwait(false);
+			}
+			FarmWatchAutoClaimEnabled = FarmWatchSettings.Current.AutoClaimEnabled;
+			FarmWatchObserveOnly = FarmWatchSettings.Current.ObserveOnly;
 
 			ASF.ArchiLogger.LogGenericInfo("FarmWatch auto-claim global switch : " + FarmWatchAutoClaimEnabled.ToString());
 			ASF.ArchiLogger.LogGenericInfo("FarmWatch observe-only mode : " + FarmWatchObserveOnly.ToString());
