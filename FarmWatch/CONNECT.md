@@ -48,13 +48,13 @@ FarmWatch sends the WatchFarm Connect v1 envelope:
 - `instance_id`: stable random identifier generated once and stored in FarmWatch settings
 - `recorded_at`: UTC timestamp
 - `statistics`: aggregate FarmWatch counters and state
-- `claims`: reserved for the versioned event-history contract; detailed claim records remain local until the receiver supports package-vs-app claim types
+- `claims`: an array of successful claim events with a stable `claim_id`, `target_type` (`App` or `Sub`), `target_id`, UTC `claimed_at` timestamp, and `source`
 
-The current statistics payload includes plugin version, global auto-claim and observe-only flags, PICS change number, bot totals/connection/configuration counts, queue size, changed app/package counts, newly owned and seen package counts, ignored apps, waitlisted playtests, promotion evidence, activation-cache count, last activation time durable FarmWatch claim totals (Free-to-Keep packages, free-DLC apps, today and this month), and farming-session totals (session count, active sessions, tracked seconds and unique games queued at session start).
+The current statistics payload includes plugin version, global auto-claim and observe-only flags, PICS change number, bot totals/connection/configuration counts, queue size, changed app/package counts, newly owned and seen package counts, ignored apps, waitlisted playtests, promotion evidence, activation-cache count, last activation time, durable FarmWatch claim totals (Free-to-Keep packages, free-DLC apps, today and this month), and farming-session totals (session count, active sessions, tracked seconds and unique games queued at session start).
 
 Successful FarmWatch claims are also recorded locally in `FarmWatch.statistics.json`. This is a durable event ledger, separate from the short-lived activation rate-limit cache. It deduplicates by bot + claim type + target ID. The current ledger records successful claims made after this version is installed; it does not invent historical claims from ownership snapshots. Farming sessions are recorded from ASF's start/stop/finished callbacks in a separate local `FarmWatch.farming.json` ledger. Session duration is measured locally from callback timestamps; game IDs are captured from ASF's farming queue at session start, so per-game time is not claimed where ASF does not expose reliable attribution.
 
-No Steam credentials, Steam IDs, account names, bot names, filters, or raw diagnostics/event logs are uploaded.
+Claim events include package/app target IDs and timestamps but no bot name. No Steam credentials, Steam IDs, account names, filters, or raw diagnostics/event logs are uploaded.
 
 ## Delivery and retry behaviour
 
@@ -67,3 +67,8 @@ No Steam credentials, Steam IDs, account names, bot names, filters, or raw diagn
 - Repeated uploads are safe because the WordPress receiver deduplicates by `instance_id` and `upload_id`.
 
 The uploader is independent of FarmWatch's claiming switches. Enabling Connect does not enable auto-claiming or change any bot configuration.
+
+
+## Statistics time boundaries
+
+The API's `today` and `thisMonth` counters and the 30-day activity series use UTC calendar boundaries. Farming durations are clipped to the requested period boundaries rather than counting an entire session in every period it overlaps. Any farming session left open when ASF exits is closed at the next process start; time while ASF was offline is not counted as farming.
