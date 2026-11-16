@@ -89,7 +89,22 @@ export default {
     barHeight(value, max) { return Math.max(2, Math.round((Number(value || 0) / max) * 100)) + '%'; },
     labelDate(value) { return value ? value.slice(8, 10) : ''; },
     dateTime(value) { return value ? new Date(value).toLocaleString() : '—'; },
-    async saveTradeBaseline() {\n      if (this.savingBaseline) return;\n      const count = Number(this.baselineDraft);\n      if (!Number.isInteger(count) || count < 0 || count > 1000000000) { this.baselineMessage = "Enter a whole number from 0 to 1,000,000,000."; return; }\n      this.savingBaseline = true;\n      this.baselineMessage = "";\n      try {\n        await this.$http.post("farmwatch/TradeBaseline", { completedTrades: count });\n        this.baselineDraft = count;\n        this.baselineMessage = "Historical trade total saved.";\n        await this.refresh();\n      } catch (error) {\n        this.baselineMessage = error.message || "Could not save the historical trade total.";\n      } finally { this.savingBaseline = false; }\n    },\n    async refresh() {
+    async saveTradeBaseline() {
+      if (this.savingBaseline) return;
+      const count = Number(this.baselineDraft);
+      if (!Number.isInteger(count) || count < 0 || count > 1000000000) { this.baselineMessage = "Enter a whole number from 0 to 1,000,000,000."; return; }
+      this.savingBaseline = true;
+      this.baselineMessage = "";
+      try {
+        await this.$http.post("farmwatch/TradeBaseline", { completedTrades: count });
+        this.baselineDraft = count;
+        this.baselineMessage = "Historical trade total saved.";
+        await this.refresh();
+      } catch (error) {
+        this.baselineMessage = error.message || "Could not save the historical trade total.";
+      } finally { this.savingBaseline = false; }
+    },
+    async refresh() {
       if (this.refreshing) return;
       this.refreshing = true;
       this.error = '';
