@@ -25,7 +25,7 @@ internal static class FarmWatchDiagnostics {
 	private const long MaximumLogBytes = 5 * 1024 * 1024;
 	private static readonly ConcurrentQueue<FarmWatchEvent> Events = new();
 	private static readonly object FileLock = new();
-	private static readonly string LogPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData", "FarmWatch.events.jsonl");
+	private static readonly string LogPath = Path.Combine("plugins", "FarmWatch", "FarmWatch.events.jsonl");
 	private static long NextId;
 	private static bool Initialized;
 
