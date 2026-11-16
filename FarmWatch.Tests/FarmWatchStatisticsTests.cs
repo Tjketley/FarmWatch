@@ -6,6 +6,17 @@ namespace FreePackages.Tests;
 [TestClass]
 public sealed class FarmWatchStatisticsTests {
 	[TestMethod]
+	public void DiagnosticsRetainsOnlyNewestLinesInOriginalOrder() {
+		string[] lines = { "one", "two", "three", "four", "five" };
+		CollectionAssert.AreEqual(new[] { "three", "four", "five" }, FarmWatchDiagnostics.GetLastLines(lines, 3));
+	}
+
+	[TestMethod]
+	public void DiagnosticsReturnsNoLinesForNonPositiveLimit() {
+		CollectionAssert.AreEqual(Array.Empty<string>(), FarmWatchDiagnostics.GetLastLines(new[] { "one" }, 0));
+	}
+
+	[TestMethod]
 	public void FarmingDurationClipsSessionAtStartOfDay() {
 		DateTime dayStart = new(2026, 11, 16, 0, 0, 0, DateTimeKind.Utc);
 		DateTime sessionStart = dayStart.AddHours(-2);
