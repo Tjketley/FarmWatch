@@ -31,10 +31,6 @@ public sealed class FarmWatchController : ArchiController {
 				});
 			}
 		}
-		bots.Sort((left, right) => string.Compare(
-			(string?) left.GetType().GetProperty("name")?.GetValue(left),
-			(string?) right.GetType().GetProperty("name")?.GetValue(right),
-			StringComparison.OrdinalIgnoreCase));
 		return Ok(new {
 			name = "FarmWatch",
 			version = typeof(FreePackages).Assembly.GetName().Version?.ToString() ?? "unknown",
