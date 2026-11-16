@@ -37,19 +37,27 @@ namespace FreePackages {
 				 yield return (appIDs, packageIDs);
 			} else {
 				if (appIDs != null) {
-					for (int i = 0; i < Math.Ceiling((decimal) appIDs.Count / ItemsPerProductInfoRequest); i++) {
-						HashSet<uint> batchedAppIDs = appIDs.Skip(i * ItemsPerProductInfoRequest).Take(ItemsPerProductInfoRequest).ToHashSet<uint>();
-
-						yield return (batchedAppIDs, null);
+					HashSet<uint> batch = new();
+					foreach (uint appID in appIDs) {
+						batch.Add(appID);
+						if (batch.Count == ItemsPerProductInfoRequest) {
+							yield return (batch, null);
+							batch = new HashSet<uint>();
+						}
 					}
+					if (batch.Count > 0) yield return (batch, null);
 				}
 
 				if (packageIDs != null) {
-					for (int i = 0; i < Math.Ceiling((decimal) packageIDs.Count / ItemsPerProductInfoRequest); i++) {
-						HashSet<uint> batchedPackageIDs = packageIDs.Skip(i * ItemsPerProductInfoRequest).Take(ItemsPerProductInfoRequest).ToHashSet<uint>();
-
-						yield return (null, batchedPackageIDs);
+					HashSet<uint> batch = new();
+					foreach (uint packageID in packageIDs) {
+						batch.Add(packageID);
+						if (batch.Count == ItemsPerProductInfoRequest) {
+							yield return (null, batch);
+							batch = new HashSet<uint>();
+						}
 					}
+					if (batch.Count > 0) yield return (null, batch);
 				}
 			}
 		}
