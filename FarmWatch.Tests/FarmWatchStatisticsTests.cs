@@ -17,6 +17,16 @@ public sealed class FarmWatchStatisticsTests {
 	}
 
 	[TestMethod]
+	public void FarmingDurationAggregationSumsClippedSessions() {
+		DateTime periodStart = new(2026, 11, 16, 0, 0, 0, DateTimeKind.Utc);
+		FarmWatchStatisticsStore.FarmingSession[] sessions = {
+			new() { StartedAtUtc = periodStart.AddHours(-1), EndedAtUtc = periodStart.AddHours(2) },
+			new() { StartedAtUtc = periodStart.AddHours(3), EndedAtUtc = periodStart.AddHours(5) }
+		};
+		Assert.AreEqual(3 * 60 * 60, FarmWatchStatisticsMath.SumOverlapSeconds(sessions, periodStart, periodStart.AddDays(1)), 0.001);
+	}
+
+	[TestMethod]
 	public void FarmingDurationClipsSessionAtStartOfDay() {
 		DateTime dayStart = new(2026, 11, 16, 0, 0, 0, DateTimeKind.Utc);
 		DateTime sessionStart = dayStart.AddHours(-2);
