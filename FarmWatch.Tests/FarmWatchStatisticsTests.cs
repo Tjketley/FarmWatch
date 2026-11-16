@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace FreePackages.Tests;
@@ -24,6 +25,23 @@ public sealed class FarmWatchStatisticsTests {
 			new() { StartedAtUtc = periodStart.AddHours(3), EndedAtUtc = periodStart.AddHours(5) }
 		};
 		Assert.AreEqual(3 * 60 * 60, FarmWatchStatisticsMath.SumOverlapSeconds(sessions, periodStart, periodStart.AddDays(1)), 0.001);
+	}
+
+	[TestMethod]
+	public void ProductInfoBatchingKeepsEveryIdWithinSteamLimit() {
+		HashSet<uint> appIds = new();
+		for (uint id = 1; id <= 256; id++) appIds.Add(id);
+		List<HashSet<uint>?> batches = new();
+		foreach ((HashSet<uint>? apps, HashSet<uint>? packages) in ProductInfo.GetProductIDBatches(appIds, null)) {
+			Assert.IsNull(packages);
+			batches.Add(apps);
+		}
+		Assert.AreEqual(2, batches.Count);
+		Assert.AreEqual(ProductInfo.ItemsPerProductInfoRequest, batches[0]!.Count);
+		Assert.AreEqual(1, batches[1]!.Count);
+		HashSet<uint> returned = new();
+		foreach (HashSet<uint>? batch in batches) foreach (uint id in batch!) returned.Add(id);
+		Assert.AreEqual(appIds.Count, returned.Count);
 	}
 
 	[TestMethod]
