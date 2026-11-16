@@ -219,7 +219,7 @@ public sealed class FarmWatchController : ArchiController {
 					changed = true;
 				}
 				if (config["FarmWatchAutoClaimEnabled"] == null) {
-					config["FarmWatchAutoClaimEnabled"] = false;
+					config["FarmWatchAutoClaimEnabled"] = true;
 					changed = true;
 				}
 
