@@ -182,12 +182,6 @@ internal static class FarmWatchStatisticsStore {
 	private static double OverlapSeconds(FarmingSession session, DateTime periodStart, DateTime periodEnd) =>
 		FarmWatchStatisticsMath.CalculateOverlapSeconds(session.StartedAtUtc, session.EndedAtUtc, periodStart, periodEnd);
 
-	private static double SumFarmingSeconds(DateTime periodStart, DateTime periodEnd) {
-		double total = 0;
-		foreach (FarmingSession session in FarmingSessions) total += OverlapSeconds(session, periodStart, periodEnd);
-		return total;
-	}
-
 	private static long SumTradeItems(bool sent) {
 		long total = 0;
 		foreach (TradeEvent trade in Trades) total += sent ? trade.ItemsSent : trade.ItemsReceived;
@@ -203,9 +197,9 @@ internal static class FarmWatchStatisticsStore {
 			return new {
 				totalSessions = FarmingSessions.Count,
 				activeSessions = FarmingSessions.Count(item => !item.EndedAtUtc.HasValue),
-				lifetimeSeconds = SumFarmingSeconds(DateTime.MinValue, now),
-				todaySeconds = SumFarmingSeconds(today, now),
-				thisMonthSeconds = SumFarmingSeconds(month, now),
+				lifetimeSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, DateTime.MinValue, now),
+				todaySeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, today, now),
+				thisMonthSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, month, now),
 				uniqueGames = FarmingSessions.SelectMany(item => item.AppIds).Distinct().Count()
 			};
 		}
@@ -221,7 +215,7 @@ internal static class FarmWatchStatisticsStore {
 			var dailyActivity = Enumerable.Range(0, 30).Select(offset => {
 				DateTime dayStart = chartStart.AddDays(offset);
 				DateTime dayEnd = dayStart.AddDays(1) < now ? dayStart.AddDays(1) : now;
-				double farmingSeconds = SumFarmingSeconds(dayStart, dayEnd);
+				double farmingSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, dayStart, dayEnd);
 				return new {
 					date = dayStart.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
 					claims = Claims.Count(item => item.ClaimedAtUtc >= dayStart && item.ClaimedAtUtc < dayEnd),
@@ -243,9 +237,9 @@ internal static class FarmWatchStatisticsStore {
 				farming = new {
 					totalSessions = FarmingSessions.Count,
 					activeSessions = FarmingSessions.Count(item => !item.EndedAtUtc.HasValue),
-					lifetimeSeconds = FarmingSessions.Sum(item => OverlapSeconds(item, DateTime.MinValue, now)),
-					todaySeconds = FarmingSessions.Sum(item => OverlapSeconds(item, today, now)),
-					thisMonthSeconds = FarmingSessions.Sum(item => OverlapSeconds(item, month, now)),
+					lifetimeSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, DateTime.MinValue, now),
+					todaySeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, today, now),
+					thisMonthSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, month, now),
 					uniqueGames = FarmingSessions.SelectMany(item => item.AppIds).Distinct().Count(),
 					recent = FarmingSessions.OrderByDescending(item => item.StartedAtUtc).Take(historyLimit).ToArray()
 				},
