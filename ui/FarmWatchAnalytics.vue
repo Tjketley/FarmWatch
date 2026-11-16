@@ -9,7 +9,7 @@
         <article class="fw-metric"><div class="fw-metric-label">Total claims</div><div class="fw-metric-value">{{ fmt(claims.total) }}</div><div class="fw-muted">Lifetime recorded</div></article>
         <article class="fw-metric"><div class="fw-metric-label">Free-to-keep</div><div class="fw-metric-value">{{ fmt(claims.freeToKeepPackages) }}</div><div class="fw-muted">Package claims</div></article>
         <article class="fw-metric"><div class="fw-metric-label">Farming time</div><div class="fw-metric-value">{{ duration(farming.lifetimeSeconds) }}</div><div class="fw-muted">{{ fmt(farming.totalSessions) }} sessions</div></article>
-        <article class="fw-metric"><div class="fw-metric-label">Completed trades</div><div class="fw-metric-value">{{ fmt(trades.completedTrades) }}</div><div class="fw-muted">Live callback history</div></article>
+        <article class="fw-metric"><div class="fw-metric-label">Completed trades</div><div class="fw-metric-value">{{ fmt(trades.completedTrades) }}</div><div class="fw-muted">{{ fmt(trades.manualBaseline) }} before monitoring · {{ fmt(trades.monitoringTrades) }} captured live</div></article>
       </div>
 
       <section class="fw-panel" style="margin-bottom:1rem">
@@ -65,7 +65,7 @@
 <script>
 export default {
   name: 'FarmWatchAnalytics',
-  data() { return { stats: {}, error: '', refreshedAt: '', refreshTimer: null, refreshing: false }; },
+  data() { return { stats: {}, error: '', refreshedAt: '', refreshTimer: null, refreshing: false, baselineDraft: null, savingBaseline: false, baselineMessage: '' }; },
   computed: {
     claims() { return this.stats.claims || {}; },
     farming() { return this.stats.farming || {}; },
@@ -89,7 +89,7 @@ export default {
     barHeight(value, max) { return Math.max(2, Math.round((Number(value || 0) / max) * 100)) + '%'; },
     labelDate(value) { return value ? value.slice(8, 10) : ''; },
     dateTime(value) { return value ? new Date(value).toLocaleString() : '—'; },
-    async refresh() {
+    async saveTradeBaseline() {\n      if (this.savingBaseline) return;\n      const count = Number(this.baselineDraft);\n      if (!Number.isInteger(count) || count < 0 || count > 1000000000) { this.baselineMessage = "Enter a whole number from 0 to 1,000,000,000."; return; }\n      this.savingBaseline = true;\n      this.baselineMessage = "";\n      try {\n        await this.$http.post("farmwatch/TradeBaseline", { completedTrades: count });\n        this.baselineDraft = count;\n        this.baselineMessage = "Historical trade total saved.";\n        await this.refresh();\n      } catch (error) {\n        this.baselineMessage = error.message || "Could not save the historical trade total.";\n      } finally { this.savingBaseline = false; }\n    },\n    async refresh() {
       if (this.refreshing) return;
       this.refreshing = true;
       this.error = '';
