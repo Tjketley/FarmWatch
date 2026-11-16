@@ -9,7 +9,7 @@ using ArchiSteamFarm.Helpers.Json;
 namespace FreePackages;
 
 internal sealed class FarmWatchSettings : SerializableFile {
-	private static readonly string DataDirectory = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData");
+	private static readonly string DataDirectory = Path.Combine("plugins", "FarmWatch");
 	private static readonly string SettingsPath = Path.Combine(DataDirectory, "FarmWatch.json");
 	private static readonly string LegacySettingsPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.json");
 	internal static FarmWatchSettings Current { get; private set; } = new();
