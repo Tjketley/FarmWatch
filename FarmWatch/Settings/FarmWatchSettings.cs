@@ -14,10 +14,10 @@ internal sealed class FarmWatchSettings : SerializableFile {
 	internal static bool Exists => File.Exists(SettingsPath);
 
 	[JsonInclude]
-	public bool AutoClaimEnabled { get; set; }
+	public bool AutoClaimEnabled { get; set; } = true;
 
 	[JsonInclude]
-	public bool ObserveOnly { get; set; } = true;
+	public bool ObserveOnly { get; set; } = false;
 
 	[JsonInclude]
 	public ConcurrentDictionary<string, bool> BotAutoClaim { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
