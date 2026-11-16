@@ -161,7 +161,9 @@ internal static class FarmWatchStatisticsStore {
 			DateTime today = now.Date;
 			DateTime month = new(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 			return new {
-				completedTrades = Trades.Count,
+				completedTrades = FarmWatchSettings.Current.ManualTradeBaseline + Trades.Count,
+				manualBaseline = FarmWatchSettings.Current.ManualTradeBaseline,
+				monitoringTrades = Trades.Count,
 				itemsSent = SumTradeItems(sent: true),
 				itemsReceived = SumTradeItems(sent: false),
 				today = Trades.Count(item => item.RecordedAtUtc >= today),
@@ -285,12 +287,14 @@ internal static class FarmWatchStatisticsStore {
 					recent = GetRecentFarmingSessions(historyLimit)
 				},
 				trades = new {
-					completedTrades = Trades.Count,
+					completedTrades = FarmWatchSettings.Current.ManualTradeBaseline + Trades.Count,
+					manualBaseline = FarmWatchSettings.Current.ManualTradeBaseline,
+					monitoringTrades = Trades.Count,
 					itemsSent = SumTradeItems(sent: true),
 					itemsReceived = SumTradeItems(sent: false),
 					today = Trades.Count(item => item.RecordedAtUtc >= today),
 					thisMonth = Trades.Count(item => item.RecordedAtUtc >= month),
-					historySource = "live_callbacks_only",
+					historySource = "manual_baseline_plus_live_callbacks",
 					recent = GetRecentTrades(historyLimit)
 				}
 			};
