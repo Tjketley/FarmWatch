@@ -37,6 +37,17 @@
       </div>
 
       <section class="fw-panel" style="margin-top:1rem">
+        <h2 class="fw-panel-title">Recent trades</h2>
+        <div v-if="trades.recent && trades.recent.length" class="fw-table-wrap">
+          <table class="fw-table"><thead><tr><th>Trade ID</th><th>Bot</th><th>Items sent</th><th>Items received</th><th>Recorded</th></tr></thead>
+            <tbody><tr v-for="item in trades.recent" :key="item.bot + '-' + item.tradeId"><td>{{ item.tradeId }}</td><td>{{ item.bot }}</td><td>{{ fmt(item.itemsSent) }}</td><td>{{ fmt(item.itemsReceived) }}</td><td>{{ dateTime(item.recordedAtUtc) }}</td></tr></tbody>
+          </table>
+        </div>
+        <p v-else class="fw-muted">No completed trades have been captured yet.</p>
+        <p class="fw-muted" style="font-size:.75rem">Trade history currently records incoming offers accepted and confirmed by ASF's trading handler.</p>
+      </section>
+
+      <section class="fw-panel" style="margin-top:1rem">
         <h2 class="fw-panel-title">Recent claims</h2>
         <div v-if="claims.recent && claims.recent.length" class="fw-table-wrap">
           <table class="fw-table"><thead><tr><th>Type</th><th>Target ID</th><th>Bot</th><th>Claimed</th></tr></thead>
@@ -54,7 +65,7 @@
 <script>
 export default {
   name: 'FarmWatchAnalytics',
-  data() { return { stats: {}, error: '', refreshedAt: '' }; },
+  data() { return { stats: {}, error: '', refreshedAt: '', refreshTimer: null, refreshing: false }; },
   computed: {
     claims() { return this.stats.claims || {}; },
     farming() { return this.stats.farming || {}; },
@@ -64,14 +75,33 @@ export default {
     maxTrades() { return Math.max(1, ...this.activity.map(x => Number(x.trades || 0))); },
     maxFarming() { return Math.max(1, ...this.activity.map(x => Number(x.farmingSeconds || 0) / 3600)); },
   },
-  created() { this.refresh(); },
+  created() {
+    this.refresh();
+    this.refreshTimer = setInterval(() => this.refresh(), 30000);
+  },
+  beforeDestroy() {
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+    this.refreshTimer = null;
+  },
   methods: {
     fmt(value) { return Number(value || 0).toLocaleString(); },
     duration(seconds) { const n = Math.max(0, Math.floor(Number(seconds || 0) / 3600)); const m = Math.floor((Number(seconds || 0) % 3600) / 60); return n + 'h ' + m + 'm'; },
     barHeight(value, max) { return Math.max(2, Math.round((Number(value || 0) / max) * 100)) + '%'; },
     labelDate(value) { return value ? value.slice(8, 10) : ''; },
     dateTime(value) { return value ? new Date(value).toLocaleString() : '—'; },
-    async refresh() { this.error = ''; try { this.stats = await this.$http.get('farmwatch/Statistics', { limit: 20 }) || {}; this.refreshedAt = new Date().toLocaleTimeString(); } catch (error) { this.error = error.message || 'Analytics could not be loaded.'; } },
+    async refresh() {
+      if (this.refreshing) return;
+      this.refreshing = true;
+      this.error = '';
+      try {
+        this.stats = await this.$http.get('farmwatch/Statistics', { limit: 20 }) || {};
+        this.refreshedAt = new Date().toLocaleTimeString();
+      } catch (error) {
+        this.error = error.message || 'Analytics could not be loaded.';
+      } finally {
+        this.refreshing = false;
+      }
+    },
   },
 };
 </script>
