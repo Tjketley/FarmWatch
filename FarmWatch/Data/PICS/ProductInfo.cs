@@ -73,8 +73,14 @@ namespace FreePackages {
 				var packages = requestedPackageIDs.Select(x => new SteamApps.PICSRequest(x, packageAccessTokens?.GetValueOrDefault(x, (ulong) 0) ?? 0));
 				var response = await bot.SteamApps.PICSGetProductInfo(apps, packages).ToLongRunningTask().ConfigureAwait(false);
 				List<SteamApps.PICSProductInfoCallback>? results = response.Results?.ToList();
-				int returnedPackages = results?.Sum(result => result.Packages.Count) ?? 0;
-				int returnedApps = results?.Sum(result => result.Apps.Count) ?? 0;
+				int returnedPackages = 0;
+				int returnedApps = 0;
+				if (results != null) {
+					foreach (SteamApps.PICSProductInfoCallback result in results) {
+						returnedPackages += result.Packages.Count;
+						returnedApps += result.Apps.Count;
+					}
+				}
 
 				ASF.ArchiLogger.LogGenericInfo($"FarmWatch PICS product-info response: {returnedApps} apps and {returnedPackages} packages returned across {results?.Count ?? 0} result groups.");
 
