@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -41,7 +42,7 @@ internal static class FarmWatchDiagnostics {
 			try {
 				if (!File.Exists(LogPath)) return;
 
-				foreach (string line in File.ReadLines(LogPath).TakeLast(MaximumEvents)) {
+				foreach (string line in GetLastLines(File.ReadLines(LogPath), MaximumEvents)) {
 					try {
 						FarmWatchEvent? entry = JsonSerializer.Deserialize<FarmWatchEvent>(line);
 						if (entry == null) continue;
@@ -89,6 +90,18 @@ internal static class FarmWatchDiagnostics {
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
 		}
+	}
+
+	internal static string[] GetLastLines(IEnumerable<string> lines, int limit) {
+		ArgumentNullException.ThrowIfNull(lines);
+		if (limit <= 0) return Array.Empty<string>();
+
+		Queue<string> recent = new();
+		foreach (string line in lines) {
+			recent.Enqueue(line);
+			if (recent.Count > limit) recent.Dequeue();
+		}
+		return recent.ToArray();
 	}
 
 	internal static string StorageFileName => Path.GetFileName(LogPath);
