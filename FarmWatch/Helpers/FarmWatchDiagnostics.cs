@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -109,6 +108,9 @@ internal static class FarmWatchDiagnostics {
 
 	internal static FarmWatchEvent[] GetRecent(int limit = 200) {
 		int safeLimit = Math.Clamp(limit, 1, MaximumEvents);
-		return Events.ToArray().OrderByDescending(entry => entry.Id).Take(safeLimit).ToArray();
+		FarmWatchEvent[] recent = Events.ToArray();
+		Array.Sort(recent, (left, right) => right.Id.CompareTo(left.Id));
+		if (recent.Length > safeLimit) Array.Resize(ref recent, safeLimit);
+		return recent;
 	}
 }
