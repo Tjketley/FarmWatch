@@ -24,7 +24,7 @@ public sealed class FarmWatchStatisticsTests {
 			new() { StartedAtUtc = periodStart.AddHours(-1), EndedAtUtc = periodStart.AddHours(2) },
 			new() { StartedAtUtc = periodStart.AddHours(3), EndedAtUtc = periodStart.AddHours(5) }
 		};
-		Assert.AreEqual(3 * 60 * 60, FarmWatchStatisticsMath.SumOverlapSeconds(sessions, periodStart, periodStart.AddDays(1)), 0.001);
+		Assert.AreEqual(4 * 60 * 60, FarmWatchStatisticsMath.SumOverlapSeconds(sessions, periodStart, periodStart.AddDays(1)), 0.001);
 	}
 
 	[TestMethod]
