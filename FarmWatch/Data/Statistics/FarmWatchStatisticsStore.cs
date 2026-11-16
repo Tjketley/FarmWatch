@@ -14,10 +14,10 @@ namespace FreePackages;
 /// </summary>
 internal static class FarmWatchStatisticsStore {
 	private static readonly object Sync = new();
-	private static readonly string StorePath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData", "FarmWatch.statistics.json");
+	private static readonly string StorePath = Path.Combine("plugins", "FarmWatch", "FarmWatch.statistics.json");
 	private static readonly string TemporaryPath = StorePath + ".tmp";
-	private static readonly string FarmingPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData", "FarmWatch.farming.json");
-	private static readonly string TradesPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData", "FarmWatch.trades.json");
+	private static readonly string FarmingPath = Path.Combine("plugins", "FarmWatch", "FarmWatch.farming.json");
+	private static readonly string TradesPath = Path.Combine("plugins", "FarmWatch", "FarmWatch.trades.json");
 	private static readonly string TradesTemporaryPath = TradesPath + ".tmp";
 	private static readonly string FarmingTemporaryPath = FarmingPath + ".tmp";
 	private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = false };
@@ -56,9 +56,9 @@ internal static class FarmWatchStatisticsStore {
 		lock (Sync) {
 			if (Initialized) return;
 			Initialized = true;
-			MigrateLegacyFile("FarmWatch.statistics.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.statistics.json"), Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData", "FarmWatch.statistics.json"));
-			MigrateLegacyFile("FarmWatch.farming.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.farming.json"), Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData", "FarmWatch.farming.json"));
-			MigrateLegacyFile("FarmWatch.trades.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.trades.json"), Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData", "FarmWatch.trades.json"));
+			MigrateLegacyFile("FarmWatch.statistics.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.statistics.json"), Path.Combine("plugins", "FarmWatch", "FarmWatch.statistics.json"));
+			MigrateLegacyFile("FarmWatch.farming.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.farming.json"), Path.Combine("plugins", "FarmWatch", "FarmWatch.farming.json"));
+			MigrateLegacyFile("FarmWatch.trades.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.trades.json"), Path.Combine("plugins", "FarmWatch", "FarmWatch.trades.json"));
 			try {
 				if (File.Exists(StorePath)) {
 					List<ClaimEvent>? loaded = JsonSerializer.Deserialize(File.ReadAllText(StorePath), FarmWatchJsonContext.Default.ListClaimEvent);
@@ -173,7 +173,7 @@ internal static class FarmWatchStatisticsStore {
 
 	private static void SaveTradesLocked() {
 		try {
-			Directory.CreateDirectory(Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData"));
+			Directory.CreateDirectory(Path.Combine("plugins", "FarmWatch"));
 			File.WriteAllText(TradesTemporaryPath, JsonSerializer.Serialize(Trades, FarmWatchJsonContext.Default.ListTradeEvent));
 			File.Move(TradesTemporaryPath, TradesPath, true);
 		} catch (Exception e) {
