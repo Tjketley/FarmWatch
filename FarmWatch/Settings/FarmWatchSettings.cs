@@ -22,6 +22,8 @@ internal sealed class FarmWatchSettings : SerializableFile {
 	[JsonInclude]
 	public ConcurrentDictionary<string, bool> BotAutoClaim { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 	[JsonInclude]
+	public long ManualTradeBaseline { get; set; }
+	[JsonInclude]
 	public bool ConnectEnabled { get; set; }
 	[JsonInclude]
 	public string ConnectEndpoint { get; set; } = "";
@@ -65,6 +67,10 @@ internal sealed class FarmWatchSettings : SerializableFile {
 	}
 	internal async Task SetBot(string botName, bool enabled) {
 		BotAutoClaim[botName] = enabled;
+		await Save().ConfigureAwait(false);
+	}
+	internal async Task SetManualTradeBaseline(long completedTrades) {
+		ManualTradeBaseline = Math.Clamp(completedTrades, 0, 1_000_000_000);
 		await Save().ConfigureAwait(false);
 	}
 	internal Task SaveConnect() => Save();
