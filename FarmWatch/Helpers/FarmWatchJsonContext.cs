@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace FreePackages;
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(FarmWatchEvent))]
 [JsonSerializable(typeof(FarmWatchStatisticsStore.ClaimEvent))]
 [JsonSerializable(typeof(FarmWatchStatisticsStore.TradeEvent))]
