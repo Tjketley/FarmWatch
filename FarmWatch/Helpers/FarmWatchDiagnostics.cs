@@ -25,7 +25,7 @@ internal static class FarmWatchDiagnostics {
 	private const long MaximumLogBytes = 5 * 1024 * 1024;
 	private static readonly ConcurrentQueue<FarmWatchEvent> Events = new();
 	private static readonly object FileLock = new();
-	private static readonly string LogPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.events.jsonl");
+	private static readonly string LogPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData", "FarmWatch.events.jsonl");
 	private static long NextId;
 	private static bool Initialized;
 
@@ -74,7 +74,7 @@ internal static class FarmWatchDiagnostics {
 
 		try {
 			lock (FileLock) {
-				Directory.CreateDirectory(ArchiSteamFarm.SharedInfo.ConfigDirectory);
+				Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
 				if (File.Exists(LogPath) && new FileInfo(LogPath).Length >= MaximumLogBytes) {
 					string backupPath = LogPath + ".1";
 					if (File.Exists(backupPath)) File.Delete(backupPath);
