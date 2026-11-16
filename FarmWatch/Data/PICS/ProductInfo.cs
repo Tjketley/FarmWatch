@@ -37,19 +37,27 @@ namespace FreePackages {
 				 yield return (appIDs, packageIDs);
 			} else {
 				if (appIDs != null) {
-					for (int i = 0; i < Math.Ceiling((decimal) appIDs.Count / ItemsPerProductInfoRequest); i++) {
-						HashSet<uint> batchedAppIDs = appIDs.Skip(i * ItemsPerProductInfoRequest).Take(ItemsPerProductInfoRequest).ToHashSet<uint>();
-
-						yield return (batchedAppIDs, null);
+					HashSet<uint> batch = new();
+					foreach (uint appID in appIDs) {
+						batch.Add(appID);
+						if (batch.Count == ItemsPerProductInfoRequest) {
+							yield return (batch, null);
+							batch = new HashSet<uint>();
+						}
 					}
+					if (batch.Count > 0) yield return (batch, null);
 				}
 
 				if (packageIDs != null) {
-					for (int i = 0; i < Math.Ceiling((decimal) packageIDs.Count / ItemsPerProductInfoRequest); i++) {
-						HashSet<uint> batchedPackageIDs = packageIDs.Skip(i * ItemsPerProductInfoRequest).Take(ItemsPerProductInfoRequest).ToHashSet<uint>();
-
-						yield return (null, batchedPackageIDs);
+					HashSet<uint> batch = new();
+					foreach (uint packageID in packageIDs) {
+						batch.Add(packageID);
+						if (batch.Count == ItemsPerProductInfoRequest) {
+							yield return (null, batch);
+							batch = new HashSet<uint>();
+						}
 					}
+					if (batch.Count > 0) yield return (null, batch);
 				}
 			}
 		}
@@ -73,8 +81,14 @@ namespace FreePackages {
 				var packages = requestedPackageIDs.Select(x => new SteamApps.PICSRequest(x, packageAccessTokens?.GetValueOrDefault(x, (ulong) 0) ?? 0));
 				var response = await bot.SteamApps.PICSGetProductInfo(apps, packages).ToLongRunningTask().ConfigureAwait(false);
 				List<SteamApps.PICSProductInfoCallback>? results = response.Results?.ToList();
-				int returnedPackages = results?.Sum(result => result.Packages.Count) ?? 0;
-				int returnedApps = results?.Sum(result => result.Apps.Count) ?? 0;
+				int returnedPackages = 0;
+				int returnedApps = 0;
+				if (results != null) {
+					foreach (SteamApps.PICSProductInfoCallback result in results) {
+						returnedPackages += result.Packages.Count;
+						returnedApps += result.Apps.Count;
+					}
+				}
 
 				ASF.ArchiLogger.LogGenericInfo($"FarmWatch PICS product-info response: {returnedApps} apps and {returnedPackages} packages returned across {results?.Count ?? 0} result groups.");
 

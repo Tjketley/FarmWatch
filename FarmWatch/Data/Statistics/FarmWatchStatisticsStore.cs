@@ -115,7 +115,14 @@ internal static class FarmWatchStatisticsStore {
 		ArgumentException.ThrowIfNullOrEmpty(bot);
 		Initialize();
 		lock (Sync) {
-			FarmingSession? active = FarmingSessions.LastOrDefault(item => item.Bot.Equals(bot, StringComparison.OrdinalIgnoreCase) && !item.EndedAtUtc.HasValue);
+			FarmingSession? active = null;
+            for (int i = FarmingSessions.Count - 1; i >= 0; i--) {
+                FarmingSession candidate = FarmingSessions[i];
+                if (candidate.Bot.Equals(bot, StringComparison.OrdinalIgnoreCase) && !candidate.EndedAtUtc.HasValue) {
+                    active = candidate;
+                    break;
+                }
+            }
 			if (active == null) return;
 			active.EndedAtUtc = DateTime.UtcNow;
 			SaveFarmingLocked();
@@ -142,8 +149,8 @@ internal static class FarmWatchStatisticsStore {
 			DateTime month = new(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 			return new {
 				completedTrades = Trades.Count,
-				itemsSent = Trades.Sum(item => (long) item.ItemsSent),
-				itemsReceived = Trades.Sum(item => (long) item.ItemsReceived),
+				itemsSent = SumTradeItems(sent: true),
+				itemsReceived = SumTradeItems(sent: false),
 				today = Trades.Count(item => item.RecordedAtUtc >= today),
 				thisMonth = Trades.Count(item => item.RecordedAtUtc >= month),
 				historySource = "live_callbacks_only"
@@ -182,6 +189,12 @@ internal static class FarmWatchStatisticsStore {
 	private static double OverlapSeconds(FarmingSession session, DateTime periodStart, DateTime periodEnd) =>
 		FarmWatchStatisticsMath.CalculateOverlapSeconds(session.StartedAtUtc, session.EndedAtUtc, periodStart, periodEnd);
 
+	private static long SumTradeItems(bool sent) {
+		long total = 0;
+		foreach (TradeEvent trade in Trades) total += sent ? trade.ItemsSent : trade.ItemsReceived;
+		return total;
+	}
+
 	internal static object GetFarmingSummary() {
 		Initialize();
 		lock (Sync) {
@@ -191,12 +204,33 @@ internal static class FarmWatchStatisticsStore {
 			return new {
 				totalSessions = FarmingSessions.Count,
 				activeSessions = FarmingSessions.Count(item => !item.EndedAtUtc.HasValue),
-				lifetimeSeconds = FarmingSessions.Sum(item => OverlapSeconds(item, DateTime.MinValue, now)),
-				todaySeconds = FarmingSessions.Sum(item => OverlapSeconds(item, today, now)),
-				thisMonthSeconds = FarmingSessions.Sum(item => OverlapSeconds(item, month, now)),
+				lifetimeSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, DateTime.MinValue, now),
+				todaySeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, today, now),
+				thisMonthSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, month, now),
 				uniqueGames = FarmingSessions.SelectMany(item => item.AppIds).Distinct().Count()
 			};
 		}
+	}
+
+	private static ClaimEvent[] GetRecentClaims(int limit) {
+		List<ClaimEvent> recent = new(Claims);
+		recent.Sort((left, right) => right.ClaimedAtUtc.CompareTo(left.ClaimedAtUtc));
+		if (recent.Count > limit) recent.RemoveRange(limit, recent.Count - limit);
+		return recent.ToArray();
+	}
+
+	private static FarmingSession[] GetRecentFarmingSessions(int limit) {
+		List<FarmingSession> recent = new(FarmingSessions);
+		recent.Sort((left, right) => right.StartedAtUtc.CompareTo(left.StartedAtUtc));
+		if (recent.Count > limit) recent.RemoveRange(limit, recent.Count - limit);
+		return recent.ToArray();
+	}
+
+	private static TradeEvent[] GetRecentTrades(int limit) {
+		List<TradeEvent> recent = new(Trades);
+		recent.Sort((left, right) => right.RecordedAtUtc.CompareTo(left.RecordedAtUtc));
+		if (recent.Count > limit) recent.RemoveRange(limit, recent.Count - limit);
+		return recent.ToArray();
 	}
 
 	internal static object GetDashboardStatistics(int historyLimit = 50) {
@@ -209,7 +243,7 @@ internal static class FarmWatchStatisticsStore {
 			var dailyActivity = Enumerable.Range(0, 30).Select(offset => {
 				DateTime dayStart = chartStart.AddDays(offset);
 				DateTime dayEnd = dayStart.AddDays(1) < now ? dayStart.AddDays(1) : now;
-				double farmingSeconds = FarmingSessions.Sum(item => OverlapSeconds(item, dayStart, dayEnd));
+				double farmingSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, dayStart, dayEnd);
 				return new {
 					date = dayStart.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
 					claims = Claims.Count(item => item.ClaimedAtUtc >= dayStart && item.ClaimedAtUtc < dayEnd),
@@ -226,25 +260,25 @@ internal static class FarmWatchStatisticsStore {
 					freeDlcApps = Claims.Count(item => item.TargetType == EPackageType.App.ToString()),
 					today = Claims.Count(item => item.ClaimedAtUtc >= today),
 					thisMonth = Claims.Count(item => item.ClaimedAtUtc >= month),
-					recent = Claims.OrderByDescending(item => item.ClaimedAtUtc).Take(historyLimit).ToArray()
+					recent = GetRecentClaims(historyLimit)
 				},
 				farming = new {
 					totalSessions = FarmingSessions.Count,
 					activeSessions = FarmingSessions.Count(item => !item.EndedAtUtc.HasValue),
-					lifetimeSeconds = FarmingSessions.Sum(item => OverlapSeconds(item, DateTime.MinValue, now)),
-					todaySeconds = FarmingSessions.Sum(item => OverlapSeconds(item, today, now)),
-					thisMonthSeconds = FarmingSessions.Sum(item => OverlapSeconds(item, month, now)),
+					lifetimeSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, DateTime.MinValue, now),
+					todaySeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, today, now),
+					thisMonthSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, month, now),
 					uniqueGames = FarmingSessions.SelectMany(item => item.AppIds).Distinct().Count(),
-					recent = FarmingSessions.OrderByDescending(item => item.StartedAtUtc).Take(historyLimit).ToArray()
+					recent = GetRecentFarmingSessions(historyLimit)
 				},
 				trades = new {
 					completedTrades = Trades.Count,
-					itemsSent = Trades.Sum(item => item.ItemsSent),
-					itemsReceived = Trades.Sum(item => item.ItemsReceived),
+					itemsSent = SumTradeItems(sent: true),
+					itemsReceived = SumTradeItems(sent: false),
 					today = Trades.Count(item => item.RecordedAtUtc >= today),
 					thisMonth = Trades.Count(item => item.RecordedAtUtc >= month),
 					historySource = "live_callbacks_only",
-					recent = Trades.OrderByDescending(item => item.RecordedAtUtc).Take(historyLimit).ToArray()
+					recent = GetRecentTrades(historyLimit)
 				}
 			};
 		}

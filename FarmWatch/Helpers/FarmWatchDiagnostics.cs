@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -41,7 +41,7 @@ internal static class FarmWatchDiagnostics {
 			try {
 				if (!File.Exists(LogPath)) return;
 
-				foreach (string line in File.ReadLines(LogPath).TakeLast(MaximumEvents)) {
+				foreach (string line in GetLastLines(File.ReadLines(LogPath), MaximumEvents)) {
 					try {
 						FarmWatchEvent? entry = JsonSerializer.Deserialize<FarmWatchEvent>(line);
 						if (entry == null) continue;
@@ -91,11 +91,26 @@ internal static class FarmWatchDiagnostics {
 		}
 	}
 
+	internal static string[] GetLastLines(IEnumerable<string> lines, int limit) {
+		ArgumentNullException.ThrowIfNull(lines);
+		if (limit <= 0) return Array.Empty<string>();
+
+		Queue<string> recent = new();
+		foreach (string line in lines) {
+			recent.Enqueue(line);
+			if (recent.Count > limit) recent.Dequeue();
+		}
+		return recent.ToArray();
+	}
+
 	internal static string StorageFileName => Path.GetFileName(LogPath);
 	internal static bool IsPersistent => true;
 
 	internal static FarmWatchEvent[] GetRecent(int limit = 200) {
 		int safeLimit = Math.Clamp(limit, 1, MaximumEvents);
-		return Events.ToArray().OrderByDescending(entry => entry.Id).Take(safeLimit).ToArray();
+		FarmWatchEvent[] recent = Events.ToArray();
+		Array.Sort(recent, (left, right) => right.Id.CompareTo(left.Id));
+		if (recent.Length > safeLimit) Array.Resize(ref recent, safeLimit);
+		return recent;
 	}
 }

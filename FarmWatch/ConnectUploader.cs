@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -98,7 +97,7 @@ internal static class ConnectUploader {
 			if (!File.Exists(OutboxPath)) return;
 			string json = await File.ReadAllTextAsync(OutboxPath).ConfigureAwait(false);
 			List<UploadEnvelope>? loaded = JsonSerializer.Deserialize<List<UploadEnvelope>>(json, JsonOptions);
-			if (loaded != null) Pending.AddRange(loaded.TakeLast(MaximumPendingUploads));
+			if (loaded != null) Pending.AddRange(TakeNewest(loaded, MaximumPendingUploads));
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
 			LastStatus = "Outbox could not be loaded";
@@ -112,19 +111,48 @@ internal static class ConnectUploader {
 		File.Move(temporaryPath, OutboxPath, true);
 	}
 
+	private static T[] TakeNewest<T>(IEnumerable<T> source, int limit) {
+		if (limit <= 0) return Array.Empty<T>();
+		Queue<T> recent = new();
+		foreach (T item in source) {
+			recent.Enqueue(item);
+			if (recent.Count > limit) recent.Dequeue();
+		}
+		return recent.ToArray();
+	}
+
 	private static UploadEnvelope CreateSnapshot() {
-		var handlers = PackageHandler.Handlers.Values.ToArray();
-		var bots = Bot.BotsReadOnly?.Values.ToArray() ?? [];
-		int activations = handlers.Sum(handler => handler.BotCache.Activations.Count);
-		int queued = handlers.Sum(handler => handler.BotCache.Packages.Count);
-		int changedApps = handlers.Sum(handler => handler.BotCache.ChangedApps.Count);
-		int changedPackages = handlers.Sum(handler => handler.BotCache.ChangedPackages.Count);
-		int ownedPackages = handlers.Sum(handler => handler.BotCache.NewOwnedPackages.Count);
-		int seenPackages = handlers.Sum(handler => handler.BotCache.SeenPackages.Count);
-		int ignoredApps = handlers.Sum(handler => handler.BotCache.IgnoredApps.Count);
-		int playtests = handlers.Sum(handler => handler.BotCache.WaitlistedPlaytests.Count);
-		int evidence = handlers.Sum(handler => handler.BotCache.PromotionEvidence.Count);
-		DateTime? lastActivation = handlers.Select(handler => handler.BotCache.GetLastActivation()).Where(value => value.HasValue).Max();
+		List<PackageHandler> handlers = new(PackageHandler.Handlers.Values);
+		List<Bot> bots = Bot.BotsReadOnly == null ? new List<Bot>() : new List<Bot>(Bot.BotsReadOnly.Values);
+		int activations = 0;
+		int queued = 0;
+		int changedApps = 0;
+		int changedPackages = 0;
+		int ownedPackages = 0;
+		int seenPackages = 0;
+		int ignoredApps = 0;
+		int playtests = 0;
+		int evidence = 0;
+		DateTime? lastActivation = null;
+		int connectedBots = 0;
+		int autoClaimBots = 0;
+		foreach (Bot bot in bots) if (bot.IsConnectedAndLoggedOn) connectedBots++;
+		foreach (PackageHandler handler in handlers) {
+			activations += handler.BotCache.Activations.Count;
+			queued += handler.BotCache.Packages.Count;
+			changedApps += handler.BotCache.ChangedApps.Count;
+			changedPackages += handler.BotCache.ChangedPackages.Count;
+			ownedPackages += handler.BotCache.NewOwnedPackages.Count;
+			seenPackages += handler.BotCache.SeenPackages.Count;
+			ignoredApps += handler.BotCache.IgnoredApps.Count;
+			playtests += handler.BotCache.WaitlistedPlaytests.Count;
+			evidence += handler.BotCache.PromotionEvidence.Count;
+			if (handler.FarmWatchEnabled) autoClaimBots++;
+			DateTime? handlerLastActivation = handler.BotCache.GetLastActivation();
+			if (handlerLastActivation.HasValue && (!lastActivation.HasValue || handlerLastActivation.Value > lastActivation.Value)) {
+				lastActivation = handlerLastActivation;
+			}
+		}
 
 		var statistics = new {
 			farmwatch_version = typeof(FreePackages).Assembly.GetName().Version?.ToString() ?? "unknown",
@@ -134,10 +162,10 @@ internal static class ConnectUploader {
 			global_auto_claim_enabled = FreePackages.FarmWatchAutoClaimEnabled,
 			observe_only = FreePackages.FarmWatchObserveOnly,
 			last_pics_change_number = FreePackages.GlobalCache?.LastChangeNumber ?? 0,
-			bots_total = bots.Length,
-			bots_connected = bots.Count(bot => bot.IsConnectedAndLoggedOn),
-			bots_with_farmwatch = handlers.Length,
-			bots_auto_claim_enabled = handlers.Count(handler => handler.FarmWatchEnabled),
+			bots_total = bots.Count,
+			bots_connected = connectedBots,
+			bots_with_farmwatch = handlers.Count,
+			bots_auto_claim_enabled = autoClaimBots,
 			queued_packages = queued,
 			changed_apps = changedApps,
 			changed_packages = changedPackages,
@@ -150,19 +178,23 @@ internal static class ConnectUploader {
 			last_activation_utc = lastActivation?.ToUniversalTime()
 		};
 
+		List<object> claims = new();
+		foreach (FarmWatchStatisticsStore.ClaimEvent claim in TakeNewest(FarmWatchStatisticsStore.GetClaims(), 500)) {
+			claims.Add(new {
+				claim_id = claim.EventId,
+				target_type = claim.TargetType,
+				target_id = claim.TargetId,
+				claimed_at = claim.ClaimedAtUtc.ToUniversalTime().ToString("o"),
+				source = claim.Source
+			});
+		}
 		return new UploadEnvelope {
 			SchemaVersion = 1,
 			UploadId = Guid.NewGuid(),
 			InstanceId = FarmWatchSettings.Current.ConnectInstanceId,
 			RecordedAt = DateTime.UtcNow,
 			Statistics = statistics,
-			Claims = FarmWatchStatisticsStore.GetClaims().TakeLast(500).Select(claim => (object) new {
-				claim_id = claim.EventId,
-				target_type = claim.TargetType,
-				target_id = claim.TargetId,
-				claimed_at = claim.ClaimedAtUtc.ToUniversalTime().ToString("o"),
-				source = claim.Source
-			}).ToArray()
+			Claims = claims.ToArray()
 		};
 	}
 

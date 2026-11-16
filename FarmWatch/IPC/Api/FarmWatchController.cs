@@ -71,10 +71,25 @@ public sealed class FarmWatchController : ArchiController {
 					.OrderBy(package => package.Type.ToString())
 					.ThenBy(package => package.ID)
 					.ToArray();
-				var recentActivations = handler.BotCache.Activations
-					.OrderByDescending(timestamp => timestamp)
-					.Take(10)
-					.ToArray();
+				DateTime[] recentActivations = handler.BotCache.Activations.ToArray();
+				Array.Sort(recentActivations, (left, right) => right.CompareTo(left));
+				if (recentActivations.Length > 10) Array.Resize(ref recentActivations, 10);
+				uint[] appIds = handler.BotCache.ChangedApps.ToArray();
+				uint[] packageIds = handler.BotCache.ChangedPackages.ToArray();
+				Array.Sort(appIds);
+				Array.Sort(packageIds);
+				if (appIds.Length > 20) Array.Resize(ref appIds, 20);
+				if (packageIds.Length > 20) Array.Resize(ref packageIds, 20);
+				List<object> queue = new();
+				for (int i = 0; i < Math.Min(30, queuedPackages.Length); i++) {
+					Package package = queuedPackages[i];
+					queue.Add(new {
+						type = package.Type.ToString(),
+						id = package.ID,
+						filterHashPresent = package.FilterHash != null,
+						hasCurrentClaimEvidence = handler.BotCache.HasCurrentClaimEvidence(package)
+					});
+				}
 
 				return new {
 					name = handler.Bot.BotName,
@@ -94,19 +109,14 @@ public sealed class FarmWatchController : ArchiController {
 						waitlistedPlaytests = handler.BotCache.WaitlistedPlaytests.Count,
 						promotionEvidence = handler.BotCache.PromotionEvidence.Count,
 						currentClaimEvidence = queuedPackages.Count(package => handler.BotCache.HasCurrentClaimEvidence(package)),
-						lastActivationUtc = recentActivations.FirstOrDefault() == default ? (DateTime?) null : recentActivations[0].ToUniversalTime(),
+						lastActivationUtc = recentActivations.Length == 0 ? (DateTime?) null : recentActivations[0].ToUniversalTime(),
 						activationsInCache = handler.BotCache.Activations.Count
 					},
 					pendingChanges = new {
-						appIds = handler.BotCache.ChangedApps.OrderBy(id => id).Take(20).ToArray(),
-						packageIds = handler.BotCache.ChangedPackages.OrderBy(id => id).Take(20).ToArray()
+						appIds,
+						packageIds
 					},
-					queue = queuedPackages.Take(30).Select(package => new {
-						type = package.Type.ToString(),
-						id = package.ID,
-						filterHashPresent = package.FilterHash != null,
-						hasCurrentClaimEvidence = handler.BotCache.HasCurrentClaimEvidence(package)
-					}).ToArray()
+					queue = queue.ToArray()
 				};
 			})
 			.ToArray();
