@@ -11,4 +11,5 @@ namespace FreePackages;
 [JsonSerializable(typeof(List<FarmWatchStatisticsStore.ClaimEvent>))]
 [JsonSerializable(typeof(List<FarmWatchStatisticsStore.TradeEvent>))]
 [JsonSerializable(typeof(List<FarmWatchStatisticsStore.FarmingSession>))]
-internal partial class FarmWatchJsonContext : JsonSerializerContext;
+internal partial class FarmWatchJsonContext : JsonSerializerContext {
+}
