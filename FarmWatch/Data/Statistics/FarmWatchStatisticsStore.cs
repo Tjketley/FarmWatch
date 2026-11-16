@@ -56,6 +56,9 @@ internal static class FarmWatchStatisticsStore {
 		lock (Sync) {
 			if (Initialized) return;
 			Initialized = true;
+			MigrateLegacyFile("FarmWatch.statistics.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.statistics.json"), Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData", "FarmWatch.statistics.json"));
+			MigrateLegacyFile("FarmWatch.farming.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.farming.json"), Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData", "FarmWatch.farming.json"));
+			MigrateLegacyFile("FarmWatch.trades.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.trades.json"), Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData", "FarmWatch.trades.json"));
 			try {
 				if (File.Exists(StorePath)) {
 					List<ClaimEvent>? loaded = JsonSerializer.Deserialize(File.ReadAllText(StorePath), FarmWatchJsonContext.Default.ListClaimEvent);
@@ -84,6 +87,16 @@ internal static class FarmWatchStatisticsStore {
 				ASF.ArchiLogger.LogGenericWarningException(e);
 			}
 		}
+	}
+
+	private static void MigrateLegacyFile(string fileName, string legacyPath, string newPath) {
+		try {
+			if (File.Exists(legacyPath)) {
+				Directory.CreateDirectory(Path.GetDirectoryName(newPath)!);
+				if (!File.Exists(newPath)) File.Move(legacyPath, newPath);
+				else File.Delete(legacyPath);
+			}
+		} catch (Exception e) { ASF.ArchiLogger.LogGenericWarningException(e); }
 	}
 
 	internal static void RecordSuccessfulClaim(string bot, EPackageType type, uint targetId, DateTime claimedAtUtc) {
