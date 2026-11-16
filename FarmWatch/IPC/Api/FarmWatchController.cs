@@ -176,12 +176,12 @@ public sealed class FarmWatchController : ArchiController {
 			if (parsed is not JsonObject config) return BadRequest(new { error = "The bot configuration JSON root is not an object." });
 			bool changed = false;
 			if (config["EnableFreePackages"]?.GetValue<bool>() != true) { config["EnableFreePackages"] = true; changed = true; }
-			if (config["FarmWatchAutoClaimEnabled"] == null) { config["FarmWatchAutoClaimEnabled"] = false; changed = true; }
+			if (config["FarmWatchAutoClaimEnabled"] == null) { config["FarmWatchAutoClaimEnabled"] = true; changed = true; }
 			if (changed) {
 				await System.IO.File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
 				System.IO.File.Move(temporaryPath, configPath, true);
 			}
-			FarmWatchDiagnostics.Record("settings", "FarmWatch bot configuration added. Auto-claim remains disabled until explicitly enabled.", bot.BotName, "success");
+			FarmWatchDiagnostics.Record("settings", "FarmWatch bot configuration added. Auto-claim uses the enabled-by-default setting.", bot.BotName, "success");
 			return Ok(new { configured = true, changed, restartRequired = changed, message = changed ? "FarmWatch has been added. Restart this bot to load the plugin." : "This bot is already configured for FarmWatch." });
 		} catch (Exception e) {
 			try { if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath); } catch { }
@@ -231,7 +231,7 @@ public sealed class FarmWatchController : ArchiController {
 				await System.IO.File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
 				System.IO.File.Move(temporaryPath, configPath, true);
 				configured++;
-				FarmWatchDiagnostics.Record("settings", "FarmWatch bot configuration added to bot JSON. Auto-claim remains disabled for this bot until explicitly enabled.", bot.BotName, "success");
+				FarmWatchDiagnostics.Record("settings", "FarmWatch bot configuration added to bot JSON. Auto-claim is enabled by default for this bot.", bot.BotName, "success");
 			} catch (Exception e) {
 				try { if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath); } catch { }
 				failed.Add(bot.BotName + ": " + e.Message);
