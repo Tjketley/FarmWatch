@@ -45,6 +45,18 @@ public sealed class FarmWatchController : ArchiController {
 		return Ok(FarmWatchStatisticsStore.GetDashboardStatistics(Math.Clamp(limit, 1, 200)));
 	}
 
+	[HttpPost("TradeBaseline")]
+	[ProducesResponseType((int) HttpStatusCode.OK)]
+	[ProducesResponseType((int) HttpStatusCode.BadRequest)]
+	public async Task<ActionResult<object>> SetTradeBaseline([FromBody] FarmWatchTradeBaselineRequest request) {
+		if (request == null || request.CompletedTrades < 0 || request.CompletedTrades > 1_000_000_000) {
+			return BadRequest(new { error = "Enter a completed-trade count between 0 and 1,000,000,000." });
+		}
+		await FarmWatchSettings.Current.SetManualTradeBaseline(request.CompletedTrades).ConfigureAwait(false);
+		FarmWatchDiagnostics.Record("analytics", $"Pre-monitoring trade baseline set to {request.CompletedTrades}.");
+		return Ok(new { manualBaseline = FarmWatchSettings.Current.ManualTradeBaseline, message = "Pre-monitoring trade total saved." });
+	}
+
 	[HttpGet("ConnectStatus")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	public ActionResult<object> GetConnectStatus() => Ok(ConnectUploader.GetStatus());
@@ -288,6 +300,10 @@ public sealed class FarmWatchSettingsRequest {
 	public bool? ObserveOnly { get; set; }
 	public string? BotName { get; set; }
 	public bool? BotAutoClaimEnabled { get; set; }
+}
+
+public sealed class FarmWatchTradeBaselineRequest {
+	public long CompletedTrades { get; set; }
 }
 
 public sealed class FarmWatchConnectRequest {
