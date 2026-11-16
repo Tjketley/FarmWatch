@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -123,8 +122,8 @@ internal static class ConnectUploader {
 	}
 
 	private static UploadEnvelope CreateSnapshot() {
-		var handlers = PackageHandler.Handlers.Values.ToArray();
-		var bots = Bot.BotsReadOnly?.Values.ToArray() ?? [];
+		List<PackageHandler> handlers = new(PackageHandler.Handlers.Values);
+		List<Bot> bots = Bot.BotsReadOnly == null ? new List<Bot>() : new List<Bot>(Bot.BotsReadOnly.Values);
 		int activations = 0;
 		int queued = 0;
 		int changedApps = 0;
@@ -135,6 +134,9 @@ internal static class ConnectUploader {
 		int playtests = 0;
 		int evidence = 0;
 		DateTime? lastActivation = null;
+		int connectedBots = 0;
+		int autoClaimBots = 0;
+		foreach (Bot bot in bots) if (bot.IsConnectedAndLoggedOn) connectedBots++;
 		foreach (PackageHandler handler in handlers) {
 			activations += handler.BotCache.Activations.Count;
 			queued += handler.BotCache.Packages.Count;
@@ -145,6 +147,7 @@ internal static class ConnectUploader {
 			ignoredApps += handler.BotCache.IgnoredApps.Count;
 			playtests += handler.BotCache.WaitlistedPlaytests.Count;
 			evidence += handler.BotCache.PromotionEvidence.Count;
+			if (handler.FarmWatchEnabled) autoClaimBots++;
 			DateTime? handlerLastActivation = handler.BotCache.GetLastActivation();
 			if (handlerLastActivation.HasValue && (!lastActivation.HasValue || handlerLastActivation.Value > lastActivation.Value)) {
 				lastActivation = handlerLastActivation;
@@ -160,9 +163,9 @@ internal static class ConnectUploader {
 			observe_only = FreePackages.FarmWatchObserveOnly,
 			last_pics_change_number = FreePackages.GlobalCache?.LastChangeNumber ?? 0,
 			bots_total = bots.Length,
-			bots_connected = bots.Count(bot => bot.IsConnectedAndLoggedOn),
+			bots_connected = connectedBots,
 			bots_with_farmwatch = handlers.Length,
-			bots_auto_claim_enabled = handlers.Count(handler => handler.FarmWatchEnabled),
+			bots_auto_claim_enabled = autoClaimBots,
 			queued_packages = queued,
 			changed_apps = changedApps,
 			changed_packages = changedPackages,
@@ -175,19 +178,23 @@ internal static class ConnectUploader {
 			last_activation_utc = lastActivation?.ToUniversalTime()
 		};
 
+		List<object> claims = new();
+		foreach (FarmWatchStatisticsStore.ClaimEvent claim in TakeNewest(FarmWatchStatisticsStore.GetClaims(), 500)) {
+			claims.Add(new {
+				claim_id = claim.EventId,
+				target_type = claim.TargetType,
+				target_id = claim.TargetId,
+				claimed_at = claim.ClaimedAtUtc.ToUniversalTime().ToString("o"),
+				source = claim.Source
+			});
+		}
 		return new UploadEnvelope {
 			SchemaVersion = 1,
 			UploadId = Guid.NewGuid(),
 			InstanceId = FarmWatchSettings.Current.ConnectInstanceId,
 			RecordedAt = DateTime.UtcNow,
 			Statistics = statistics,
-			Claims = TakeNewest(FarmWatchStatisticsStore.GetClaims(), 500).Select(claim => (object) new {
-				claim_id = claim.EventId,
-				target_type = claim.TargetType,
-				target_id = claim.TargetId,
-				claimed_at = claim.ClaimedAtUtc.ToUniversalTime().ToString("o"),
-				source = claim.Source
-			}).ToArray()
+			Claims = claims.ToArray()
 		};
 	}
 
