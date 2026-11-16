@@ -94,6 +94,12 @@ internal static class ConnectUploader {
 
 	private static async Task LoadOutbox() {
 		try {
+			string legacyPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.Connect.outbox.json");
+			if (File.Exists(legacyPath)) {
+				Directory.CreateDirectory(Path.GetDirectoryName(OutboxPath)!);
+				if (!File.Exists(OutboxPath)) File.Move(legacyPath, OutboxPath);
+				else File.Delete(legacyPath);
+			}
 			if (!File.Exists(OutboxPath)) return;
 			string json = await File.ReadAllTextAsync(OutboxPath).ConfigureAwait(false);
 			List<UploadEnvelope>? loaded = JsonSerializer.Deserialize<List<UploadEnvelope>>(json, JsonOptions);
