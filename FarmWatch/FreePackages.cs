@@ -54,9 +54,9 @@ namespace FreePackages {
 			GlobalCache = await loadTask.ConfigureAwait(false);
 		}
 		// Global kill switch. Missing configuration is deliberately disabled.
-		internal static bool FarmWatchAutoClaimEnabled { get; private set; } = false;
+		internal static bool FarmWatchAutoClaimEnabled { get; private set; } = true;
 		// Observe-only is the safe default. Auto-claim requires an explicit opt-out plus both enable switches.
-		internal static bool FarmWatchObserveOnly { get; private set; } = true;
+		internal static bool FarmWatchObserveOnly { get; private set; } = false;
 		internal static void ApplyGlobalSettings(bool autoClaimEnabled, bool observeOnly) {
 			FarmWatchAutoClaimEnabled = autoClaimEnabled;
 			FarmWatchObserveOnly = observeOnly;
@@ -73,12 +73,12 @@ namespace FreePackages {
 		}
 
 		public async Task OnASFInit(IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null) {
-			bool configuredAutoClaim = additionalConfigProperties != null &&
-				additionalConfigProperties.TryGetValue("FarmWatchAutoClaimEnabled", out JsonElement autoClaimSetting) &&
-				autoClaimSetting.ValueKind == JsonValueKind.True;
-			bool configuredObserveOnly = additionalConfigProperties == null ||
-				!additionalConfigProperties.TryGetValue("FarmWatchObserveOnly", out JsonElement observeOnlySetting) ||
-				observeOnlySetting.ValueKind != JsonValueKind.False;
+			bool configuredAutoClaim = additionalConfigProperties == null ||
+				!additionalConfigProperties.TryGetValue("FarmWatchAutoClaimEnabled", out JsonElement autoClaimSetting) ||
+				autoClaimSetting.ValueKind != JsonValueKind.False;
+			bool configuredObserveOnly = additionalConfigProperties != null &&
+				additionalConfigProperties.TryGetValue("FarmWatchObserveOnly", out JsonElement observeOnlySetting) &&
+				observeOnlySetting.ValueKind == JsonValueKind.True;
 
 			await FarmWatchSettings.Load().ConfigureAwait(false);
 			if (!FarmWatchSettings.Exists) {
@@ -112,7 +112,7 @@ namespace FreePackages {
 			uint? packageLimit = null;
 			bool pauseWhilePlaying = false;
 			bool pauseWhileFarming = false;
-			bool farmWatchEnabled = false;
+			bool farmWatchEnabled = true;
 			List<FilterConfig> filterConfigs = new();
 
 			foreach (KeyValuePair<string, JsonElement> configProperty in additionalConfigProperties) {

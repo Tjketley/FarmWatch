@@ -158,3 +158,27 @@ td, th { border-color: var(--fw-border) !important; }
 .fw-field-label { display:block; margin:.9rem 0 .4rem; color:var(--fw-muted); font-size:.76rem; font-weight:650; }
 
 .snotify-info, .snotify-async { border-left-color: var(--fw-accent) !important; }
+
+
+/* Keep ASF's command console input readable under the FarmWatch theme. */
+.terminal {
+  background: #080e13 !important;
+  color: #edf3f6 !important;
+}
+.terminal__input,
+.terminal__input:focus {
+  background: transparent !important;
+  color: #edf3f6 !important;
+  -webkit-text-fill-color: #edf3f6 !important;
+  caret-color: #63e6a4 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.terminal__input--autocomplete {
+  color: #71828c !important;
+  -webkit-text-fill-color: #71828c !important;
+}
+.terminal__input-wrapper,
+.terminal__input-wrapper .terminal-message__sign {
+  color: #edf3f6 !important;
+}

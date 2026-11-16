@@ -20,7 +20,7 @@ internal static class ConnectUploader {
 	private const int MaximumPendingUploads = 24;
 	private static readonly HttpClient Client = new(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(20) };
 	private static readonly SemaphoreSlim Gate = new(1, 1);
-	private static readonly string OutboxPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.Connect.outbox.json");
+	private static readonly string OutboxPath = Path.Combine("plugins", "FarmWatch", "FarmWatch.Connect.outbox.json");
 	private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 	private static readonly List<UploadEnvelope> Pending = new();
 	private static Timer? UploadTimer;
@@ -94,6 +94,12 @@ internal static class ConnectUploader {
 
 	private static async Task LoadOutbox() {
 		try {
+			string legacyPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.Connect.outbox.json");
+			if (File.Exists(legacyPath)) {
+				Directory.CreateDirectory(Path.GetDirectoryName(OutboxPath)!);
+				if (!File.Exists(OutboxPath)) File.Move(legacyPath, OutboxPath);
+				else File.Delete(legacyPath);
+			}
 			if (!File.Exists(OutboxPath)) return;
 			string json = await File.ReadAllTextAsync(OutboxPath).ConfigureAwait(false);
 			List<UploadEnvelope>? loaded = JsonSerializer.Deserialize<List<UploadEnvelope>>(json, JsonOptions);
@@ -105,6 +111,7 @@ internal static class ConnectUploader {
 	}
 
 	private static async Task SaveOutbox() {
+		Directory.CreateDirectory(Path.GetDirectoryName(OutboxPath)!);
 		string temporaryPath = OutboxPath + ".tmp";
 		string json = JsonSerializer.Serialize(Pending, JsonOptions);
 		await File.WriteAllTextAsync(temporaryPath, json).ConfigureAwait(false);

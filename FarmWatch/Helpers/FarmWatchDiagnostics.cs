@@ -25,7 +25,7 @@ internal static class FarmWatchDiagnostics {
 	private const long MaximumLogBytes = 5 * 1024 * 1024;
 	private static readonly ConcurrentQueue<FarmWatchEvent> Events = new();
 	private static readonly object FileLock = new();
-	private static readonly string LogPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.events.jsonl");
+	private static readonly string LogPath = Path.Combine("plugins", "FarmWatch", "FarmWatch.events.jsonl");
 	private static long NextId;
 	private static bool Initialized;
 
@@ -43,7 +43,7 @@ internal static class FarmWatchDiagnostics {
 
 				foreach (string line in GetLastLines(File.ReadLines(LogPath), MaximumEvents)) {
 					try {
-						FarmWatchEvent? entry = JsonSerializer.Deserialize<FarmWatchEvent>(line);
+						FarmWatchEvent? entry = JsonSerializer.Deserialize(line, FarmWatchJsonContext.Default.FarmWatchEvent);
 						if (entry == null) continue;
 						Events.Enqueue(entry);
 						NextId = Math.Max(NextId, entry.Id);
@@ -74,14 +74,14 @@ internal static class FarmWatchDiagnostics {
 
 		try {
 			lock (FileLock) {
-				Directory.CreateDirectory(ArchiSteamFarm.SharedInfo.ConfigDirectory);
+				Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
 				if (File.Exists(LogPath) && new FileInfo(LogPath).Length >= MaximumLogBytes) {
 					string backupPath = LogPath + ".1";
 					if (File.Exists(backupPath)) File.Delete(backupPath);
 					File.Move(LogPath, backupPath);
 				}
 
-				byte[] bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(entry) + Environment.NewLine);
+				byte[] bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(entry, FarmWatchJsonContext.Default.FarmWatchEvent) + Environment.NewLine);
 				using FileStream stream = new(LogPath, FileMode.Append, FileAccess.Write, FileShare.Read, 4096, FileOptions.WriteThrough);
 				stream.Write(bytes);
 				stream.Flush(true);

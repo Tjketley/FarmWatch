@@ -9,7 +9,7 @@
         <article class="fw-metric"><div class="fw-metric-label">Total claims</div><div class="fw-metric-value">{{ fmt(claims.total) }}</div><div class="fw-muted">Lifetime recorded</div></article>
         <article class="fw-metric"><div class="fw-metric-label">Free-to-keep</div><div class="fw-metric-value">{{ fmt(claims.freeToKeepPackages) }}</div><div class="fw-muted">Package claims</div></article>
         <article class="fw-metric"><div class="fw-metric-label">Farming time</div><div class="fw-metric-value">{{ duration(farming.lifetimeSeconds) }}</div><div class="fw-muted">{{ fmt(farming.totalSessions) }} sessions</div></article>
-        <article class="fw-metric"><div class="fw-metric-label">Completed trades</div><div class="fw-metric-value">{{ fmt(trades.completedTrades) }}</div><div class="fw-muted">Live callback history</div></article>
+        <article class="fw-metric"><div class="fw-metric-label">Completed trades</div><div class="fw-metric-value">{{ fmt(trades.completedTrades) }}</div><div class="fw-muted">{{ fmt(trades.manualBaseline) }} before monitoring · {{ fmt(trades.monitoringTrades) }} captured live</div></article>
       </div>
 
       <section class="fw-panel" style="margin-bottom:1rem">
@@ -37,6 +37,30 @@
       </div>
 
       <section class="fw-panel" style="margin-top:1rem">
+        <h2 class="fw-panel-title">Historical trade total</h2>
+        <p class="fw-muted">Enter the number of trades completed before FarmWatch started monitoring. This is added to the live trades FarmWatch records from now on; it won't change today's or this month's live activity.</p>
+        <form @submit.prevent="saveTradeBaseline" style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap">
+          <label style="display:flex;flex-direction:column;gap:.35rem;min-width:220px;flex:1">
+            <span class="fw-muted">Trades completed before monitoring</span>
+            <input class="form-control" type="number" min="0" max="1000000000" step="1" v-model.number="baselineDraft" placeholder="e.g. 1250">
+          </label>
+          <button class="btn btn-primary" type="submit" :disabled="savingBaseline || baselineDraft === null || baselineDraft === '' || Number(baselineDraft) < 0 || Number(baselineDraft) > 1000000000">{{ savingBaseline ? 'Saving…' : 'Save historical total' }}</button>
+        </form>
+        <p v-if="baselineMessage" class="fw-muted" style="margin:.75rem 0 0">{{ baselineMessage }}</p>
+      </section>
+
+      <section class="fw-panel" style="margin-top:1rem">
+        <h2 class="fw-panel-title">Recent trades</h2>
+        <div v-if="trades.recent && trades.recent.length" class="fw-table-wrap">
+          <table class="fw-table"><thead><tr><th>Trade ID</th><th>Bot</th><th>Items sent</th><th>Items received</th><th>Recorded</th></tr></thead>
+            <tbody><tr v-for="item in trades.recent" :key="item.bot + '-' + item.tradeId"><td>{{ item.tradeId }}</td><td>{{ item.bot }}</td><td>{{ fmt(item.itemsSent) }}</td><td>{{ fmt(item.itemsReceived) }}</td><td>{{ dateTime(item.recordedAtUtc) }}</td></tr></tbody>
+          </table>
+        </div>
+        <p v-else class="fw-muted">No completed trades have been captured yet.</p>
+        <p class="fw-muted" style="font-size:.75rem">Trade history currently records incoming offers accepted and confirmed by ASF's trading handler.</p>
+      </section>
+
+      <section class="fw-panel" style="margin-top:1rem">
         <h2 class="fw-panel-title">Recent claims</h2>
         <div v-if="claims.recent && claims.recent.length" class="fw-table-wrap">
           <table class="fw-table"><thead><tr><th>Type</th><th>Target ID</th><th>Bot</th><th>Claimed</th></tr></thead>
@@ -54,7 +78,7 @@
 <script>
 export default {
   name: 'FarmWatchAnalytics',
-  data() { return { stats: {}, error: '', refreshedAt: '' }; },
+  data() { return { stats: {}, error: '', refreshedAt: '', refreshTimer: null, refreshing: false, baselineDraft: null, savingBaseline: false, baselineMessage: '' }; },
   computed: {
     claims() { return this.stats.claims || {}; },
     farming() { return this.stats.farming || {}; },
@@ -64,14 +88,48 @@ export default {
     maxTrades() { return Math.max(1, ...this.activity.map(x => Number(x.trades || 0))); },
     maxFarming() { return Math.max(1, ...this.activity.map(x => Number(x.farmingSeconds || 0) / 3600)); },
   },
-  created() { this.refresh(); },
+  created() {
+    this.refresh();
+    this.refreshTimer = setInterval(() => this.refresh(), 30000);
+  },
+  beforeDestroy() {
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+    this.refreshTimer = null;
+  },
   methods: {
     fmt(value) { return Number(value || 0).toLocaleString(); },
     duration(seconds) { const n = Math.max(0, Math.floor(Number(seconds || 0) / 3600)); const m = Math.floor((Number(seconds || 0) % 3600) / 60); return n + 'h ' + m + 'm'; },
     barHeight(value, max) { return Math.max(2, Math.round((Number(value || 0) / max) * 100)) + '%'; },
     labelDate(value) { return value ? value.slice(8, 10) : ''; },
     dateTime(value) { return value ? new Date(value).toLocaleString() : '—'; },
-    async refresh() { this.error = ''; try { this.stats = await this.$http.get('farmwatch/Statistics', { limit: 20 }) || {}; this.refreshedAt = new Date().toLocaleTimeString(); } catch (error) { this.error = error.message || 'Analytics could not be loaded.'; } },
+    async saveTradeBaseline() {
+      if (this.savingBaseline) return;
+      const count = Number(this.baselineDraft);
+      if (!Number.isInteger(count) || count < 0 || count > 1000000000) { this.baselineMessage = "Enter a whole number from 0 to 1,000,000,000."; return; }
+      this.savingBaseline = true;
+      this.baselineMessage = "";
+      try {
+        await this.$http.post("farmwatch/TradeBaseline", { completedTrades: count });
+        this.baselineDraft = count;
+        this.baselineMessage = "Historical trade total saved.";
+        await this.refresh();
+      } catch (error) {
+        this.baselineMessage = error.message || "Could not save the historical trade total.";
+      } finally { this.savingBaseline = false; }
+    },
+    async refresh() {
+      if (this.refreshing) return;
+      this.refreshing = true;
+      this.error = '';
+      try {
+        this.stats = await this.$http.get('farmwatch/Statistics', { limit: 20 }) || {};
+        this.refreshedAt = new Date().toLocaleTimeString();
+      } catch (error) {
+        this.error = error.message || 'Analytics could not be loaded.';
+      } finally {
+        this.refreshing = false;
+      }
+    },
   },
 };
 </script>
