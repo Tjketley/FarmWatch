@@ -20,7 +20,7 @@ internal static class ConnectUploader {
 	private const int MaximumPendingUploads = 24;
 	private static readonly HttpClient Client = new(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(20) };
 	private static readonly SemaphoreSlim Gate = new(1, 1);
-	private static readonly string OutboxPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatchData", "FarmWatch.Connect.outbox.json");
+	private static readonly string OutboxPath = Path.Combine("plugins", "FarmWatch", "FarmWatch.Connect.outbox.json");
 	private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 	private static readonly List<UploadEnvelope> Pending = new();
 	private static Timer? UploadTimer;
