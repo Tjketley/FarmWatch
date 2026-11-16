@@ -218,8 +218,14 @@ namespace FreePackages {
 		public Task OnBotTradeOfferResults(Bot bot, IReadOnlyCollection<ArchiSteamFarm.Steam.Exchange.ParseTradeResult> tradeResults) {
 			foreach (ArchiSteamFarm.Steam.Exchange.ParseTradeResult result in tradeResults) {
 				if (result.Result != ArchiSteamFarm.Steam.Exchange.ParseTradeResult.EResult.Accepted || !result.Confirmed) continue;
-				long itemsSent = result.ItemsToGive?.Sum(item => item.Amount) ?? 0;
-				long itemsReceived = result.ItemsToReceive?.Sum(item => item.Amount) ?? 0;
+				long itemsSent = 0;
+				if (result.ItemsToGive != null) {
+					foreach (var item in result.ItemsToGive) itemsSent += item.Amount;
+				}
+				long itemsReceived = 0;
+				if (result.ItemsToReceive != null) {
+					foreach (var item in result.ItemsToReceive) itemsReceived += item.Amount;
+				}
 				FarmWatchStatisticsStore.RecordAcceptedTrade(bot.BotName, result.TradeOfferID, itemsSent, itemsReceived);
 			}
 			return Task.CompletedTask;
