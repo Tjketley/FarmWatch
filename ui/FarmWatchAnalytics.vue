@@ -37,6 +37,19 @@
       </div>
 
       <section class="fw-panel" style="margin-top:1rem">
+        <h2 class="fw-panel-title">Historical trade total</h2>
+        <p class="fw-muted">Enter the number of trades completed before FarmWatch started monitoring. This is added to the live trades FarmWatch records from now on; it won't change today's or this month's live activity.</p>
+        <form @submit.prevent="saveTradeBaseline" style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap">
+          <label style="display:flex;flex-direction:column;gap:.35rem;min-width:220px;flex:1">
+            <span class="fw-muted">Trades completed before monitoring</span>
+            <input class="form-control" type="number" min="0" max="1000000000" step="1" v-model.number="baselineDraft" placeholder="e.g. 1250">
+          </label>
+          <button class="btn btn-primary" type="submit" :disabled="savingBaseline || baselineDraft === null || baselineDraft === '' || Number(baselineDraft) < 0 || Number(baselineDraft) > 1000000000">{{ savingBaseline ? 'Saving…' : 'Save historical total' }}</button>
+        </form>
+        <p v-if="baselineMessage" class="fw-muted" style="margin:.75rem 0 0">{{ baselineMessage }}</p>
+      </section>
+
+      <section class="fw-panel" style="margin-top:1rem">
         <h2 class="fw-panel-title">Recent trades</h2>
         <div v-if="trades.recent && trades.recent.length" class="fw-table-wrap">
           <table class="fw-table"><thead><tr><th>Trade ID</th><th>Bot</th><th>Items sent</th><th>Items received</th><th>Recorded</th></tr></thead>
