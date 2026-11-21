@@ -101,6 +101,12 @@ FarmWatch stores its settings and persistent data in `plugins/FarmWatch/`, keepi
 
 FarmWatch uses Steam/ASF data needed to discover promotions, check package metadata, and verify ownership for the separate free-DLC path. The FarmWatch dashboard is hosted locally by ASF. It does not send Steam credentials, cookies, session identifiers, or account library details to a FarmWatch-operated website. Any future companion website integration is intended to use aggregate statistics only.
 
+## Current alpha validation notes
+
+**2.0.0.11 is an investigation build, not a beta or production release.** It follows the Raspberry Pi startup fix in 2.0.0.10 and changes FarmWatch's diagnostics and statistics persistence to use one explicitly configured source-generated JSON context. The JSON naming policy remains camelCase for compatibility with existing FarmWatch data files.
+
+Connect outbox loading, persistence and HTTP payload generation now use strongly typed DTOs registered in the shared source-generated JSON context. Receiver acknowledgement parsing also rejects malformed or non-true responses, and automated tests cover the outbox envelope round-trip and acknowledgement rules. A live receiver/HTTP retry test and Raspberry Pi ASF 6.3.11.7 smoke test are still required before Connect or this alpha can be considered validated.
+
 ## Development and validation
 
 The repository includes automated tests for Free-to-Keep eligibility, activation policy, promotion evidence, and metadata fixtures. CI runs the test suite and builds the plugin package.

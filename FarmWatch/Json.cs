@@ -135,7 +135,7 @@ namespace FreePackages {
 		public class EmptyArrayOrDictionaryConverter : JsonConverter<Dictionary<uint, uint>> {
 			public override Dictionary<uint, uint> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
 				if (reader.TokenType == JsonTokenType.StartObject) {
-					var dictionary = JsonSerializer.Deserialize<Dictionary<uint, uint>>(ref reader, options);
+					var dictionary = JsonSerializer.Deserialize(ref reader, FarmWatchJsonContext.Instance.DictionaryUInt32UInt32);
 					if (dictionary == null) {
 						throw new JsonException();
 					}

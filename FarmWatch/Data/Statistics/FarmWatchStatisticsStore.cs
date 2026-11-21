@@ -20,7 +20,6 @@ internal static class FarmWatchStatisticsStore {
 	private static readonly string TradesPath = Path.Combine("plugins", "FarmWatch", "FarmWatch.trades.json");
 	private static readonly string TradesTemporaryPath = TradesPath + ".tmp";
 	private static readonly string FarmingTemporaryPath = FarmingPath + ".tmp";
-	private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = false };
 	private static List<ClaimEvent> Claims = new();
 	private static List<FarmingSession> FarmingSessions = new();
 	private static List<TradeEvent> Trades = new();
@@ -52,6 +51,33 @@ internal static class FarmWatchStatisticsStore {
 		public List<uint> AppIds { get; init; } = new();
 	}
 
+
+	internal sealed class ClaimSummary {
+		public int Total { get; init; }
+		public int FreeToKeepPackages { get; init; }
+		public int FreeDlcApps { get; init; }
+		public int Today { get; init; }
+		public int ThisMonth { get; init; }
+	}
+	internal sealed class FarmingSummary {
+		public int TotalSessions { get; init; }
+		public int ActiveSessions { get; init; }
+		public double LifetimeSeconds { get; init; }
+		public double TodaySeconds { get; init; }
+		public double ThisMonthSeconds { get; init; }
+		public int UniqueGames { get; init; }
+	}
+	internal sealed class TradeSummary {
+		public long CompletedTrades { get; init; }
+		public long ManualBaseline { get; init; }
+		public int MonitoringTrades { get; init; }
+		public long ItemsSent { get; init; }
+		public long ItemsReceived { get; init; }
+		public int Today { get; init; }
+		public int ThisMonth { get; init; }
+		public string HistorySource { get; init; } = "";
+	}
+
 	internal static void Initialize() {
 		lock (Sync) {
 			if (Initialized) return;
@@ -61,15 +87,15 @@ internal static class FarmWatchStatisticsStore {
 			MigrateLegacyFile("FarmWatch.trades.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.trades.json"), Path.Combine("plugins", "FarmWatch", "FarmWatch.trades.json"));
 			try {
 				if (File.Exists(StorePath)) {
-					List<ClaimEvent>? loaded = JsonSerializer.Deserialize(File.ReadAllText(StorePath), FarmWatchJsonContext.Default.ListClaimEvent);
+					List<ClaimEvent>? loaded = JsonSerializer.Deserialize(File.ReadAllText(StorePath), FarmWatchJsonContext.Instance.ListClaimEvent);
 					if (loaded != null) Claims = loaded.Where(item => item != null && item.TargetId > 0 && item.ClaimedAtUtc != default).ToList();
 				}
 				if (File.Exists(TradesPath)) {
-					List<TradeEvent>? trades = JsonSerializer.Deserialize(File.ReadAllText(TradesPath), FarmWatchJsonContext.Default.ListTradeEvent);
+					List<TradeEvent>? trades = JsonSerializer.Deserialize(File.ReadAllText(TradesPath), FarmWatchJsonContext.Instance.ListTradeEvent);
 					if (trades != null) Trades = trades.Where(item => item != null && !string.IsNullOrEmpty(item.TradeId)).ToList();
 				}
 				if (File.Exists(FarmingPath)) {
-					List<FarmingSession>? sessions = JsonSerializer.Deserialize(File.ReadAllText(FarmingPath), FarmWatchJsonContext.Default.ListFarmingSession);
+					List<FarmingSession>? sessions = JsonSerializer.Deserialize(File.ReadAllText(FarmingPath), FarmWatchJsonContext.Instance.ListFarmingSession);
 					if (sessions != null) FarmingSessions = sessions.Where(item => item != null && item.StartedAtUtc != default).ToList();
 				}
 
@@ -154,29 +180,20 @@ internal static class FarmWatchStatisticsStore {
 		}
 	}
 
-	internal static object GetTradeSummary() {
+	internal static TradeSummary GetTradeSummary() {
 		Initialize();
 		lock (Sync) {
 			DateTime now = DateTime.UtcNow;
 			DateTime today = now.Date;
 			DateTime month = new(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-			return new {
-				completedTrades = FarmWatchSettings.Current.ManualTradeBaseline + Trades.Count,
-				manualBaseline = FarmWatchSettings.Current.ManualTradeBaseline,
-				monitoringTrades = Trades.Count,
-				itemsSent = SumTradeItems(sent: true),
-				itemsReceived = SumTradeItems(sent: false),
-				today = Trades.Count(item => item.RecordedAtUtc >= today),
-				thisMonth = Trades.Count(item => item.RecordedAtUtc >= month),
-				historySource = "live_callbacks_only"
-			};
+			return new TradeSummary { CompletedTrades = FarmWatchSettings.Current.ManualTradeBaseline + Trades.Count, ManualBaseline = FarmWatchSettings.Current.ManualTradeBaseline, MonitoringTrades = Trades.Count, ItemsSent = SumTradeItems(sent: true), ItemsReceived = SumTradeItems(sent: false), Today = Trades.Count(item => item.RecordedAtUtc >= today), ThisMonth = Trades.Count(item => item.RecordedAtUtc >= month), HistorySource = "live_callbacks_only" };
 		}
 	}
 
 	private static void SaveTradesLocked() {
 		try {
 			Directory.CreateDirectory(Path.Combine("plugins", "FarmWatch"));
-			File.WriteAllText(TradesTemporaryPath, JsonSerializer.Serialize(Trades, FarmWatchJsonContext.Default.ListTradeEvent));
+			File.WriteAllText(TradesTemporaryPath, JsonSerializer.Serialize(Trades, FarmWatchJsonContext.Instance.ListTradeEvent));
 			File.Move(TradesTemporaryPath, TradesPath, true);
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
@@ -188,17 +205,11 @@ internal static class FarmWatchStatisticsStore {
 		lock (Sync) return Claims.OrderBy(item => item.ClaimedAtUtc).ToArray();
 	}
 
-	internal static object GetClaimSummary() {
+	internal static ClaimSummary GetClaimSummary() {
 		ClaimEvent[] claims = GetClaims();
 		DateTime today = DateTime.UtcNow.Date;
 		DateTime month = new(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-		return new {
-			total = claims.Length,
-			freeToKeepPackages = claims.Count(item => item.TargetType == EPackageType.Sub.ToString()),
-			freeDlcApps = claims.Count(item => item.TargetType == EPackageType.App.ToString()),
-			today = claims.Count(item => item.ClaimedAtUtc >= today),
-			thisMonth = claims.Count(item => item.ClaimedAtUtc >= month)
-		};
+		return new ClaimSummary { Total = claims.Length, FreeToKeepPackages = claims.Count(item => item.TargetType == EPackageType.Sub.ToString()), FreeDlcApps = claims.Count(item => item.TargetType == EPackageType.App.ToString()), Today = claims.Count(item => item.ClaimedAtUtc >= today), ThisMonth = claims.Count(item => item.ClaimedAtUtc >= month) };
 	}
 
 	private static double OverlapSeconds(FarmingSession session, DateTime periodStart, DateTime periodEnd) =>
@@ -210,20 +221,13 @@ internal static class FarmWatchStatisticsStore {
 		return total;
 	}
 
-	internal static object GetFarmingSummary() {
+	internal static FarmingSummary GetFarmingSummary() {
 		Initialize();
 		lock (Sync) {
 			DateTime now = DateTime.UtcNow;
 			DateTime today = now.Date;
 			DateTime month = new(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-			return new {
-				totalSessions = FarmingSessions.Count,
-				activeSessions = FarmingSessions.Count(item => !item.EndedAtUtc.HasValue),
-				lifetimeSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, DateTime.MinValue, now),
-				todaySeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, today, now),
-				thisMonthSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, month, now),
-				uniqueGames = FarmingSessions.SelectMany(item => item.AppIds).Distinct().Count()
-			};
+			return new FarmingSummary { TotalSessions = FarmingSessions.Count, ActiveSessions = FarmingSessions.Count(item => !item.EndedAtUtc.HasValue), LifetimeSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, DateTime.MinValue, now), TodaySeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, today, now), ThisMonthSeconds = FarmWatchStatisticsMath.SumOverlapSeconds(FarmingSessions, month, now), UniqueGames = FarmingSessions.SelectMany(item => item.AppIds).Distinct().Count() };
 		}
 	}
 
@@ -304,7 +308,7 @@ internal static class FarmWatchStatisticsStore {
 	private static void SaveClaimsLocked() {
 		try {
 			Directory.CreateDirectory(ArchiSteamFarm.SharedInfo.ConfigDirectory);
-			File.WriteAllText(TemporaryPath, JsonSerializer.Serialize(Claims, FarmWatchJsonContext.Default.ListClaimEvent));
+			File.WriteAllText(TemporaryPath, JsonSerializer.Serialize(Claims, FarmWatchJsonContext.Instance.ListClaimEvent));
 			File.Move(TemporaryPath, StorePath, true);
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
@@ -314,7 +318,7 @@ internal static class FarmWatchStatisticsStore {
 	private static void SaveFarmingLocked() {
 		try {
 			Directory.CreateDirectory(ArchiSteamFarm.SharedInfo.ConfigDirectory);
-			File.WriteAllText(FarmingTemporaryPath, JsonSerializer.Serialize(FarmingSessions, FarmWatchJsonContext.Default.ListFarmingSession));
+			File.WriteAllText(FarmingTemporaryPath, JsonSerializer.Serialize(FarmingSessions, FarmWatchJsonContext.Instance.ListFarmingSession));
 			File.Move(FarmingTemporaryPath, FarmingPath, true);
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
