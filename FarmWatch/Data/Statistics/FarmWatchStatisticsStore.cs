@@ -14,10 +14,11 @@ namespace FreePackages;
 /// </summary>
 internal static class FarmWatchStatisticsStore {
 	private static readonly object Sync = new();
-	private static readonly string StorePath = Path.Combine("plugins", "FarmWatch", "FarmWatch.statistics.json");
+	private static readonly string StatisticsDirectory = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "FarmWatchData", "Statistics"));
+	private static readonly string StorePath = Path.Combine(StatisticsDirectory, "FarmWatch.statistics.json");
 	private static readonly string TemporaryPath = StorePath + ".tmp";
-	private static readonly string FarmingPath = Path.Combine("plugins", "FarmWatch", "FarmWatch.farming.json");
-	private static readonly string TradesPath = Path.Combine("plugins", "FarmWatch", "FarmWatch.trades.json");
+	private static readonly string FarmingPath = Path.Combine(StatisticsDirectory, "FarmWatch.farming.json");
+	private static readonly string TradesPath = Path.Combine(StatisticsDirectory, "FarmWatch.trades.json");
 	private static readonly string TradesTemporaryPath = TradesPath + ".tmp";
 	private static readonly string FarmingTemporaryPath = FarmingPath + ".tmp";
 	private static List<ClaimEvent> Claims = new();
@@ -82,9 +83,10 @@ internal static class FarmWatchStatisticsStore {
 		lock (Sync) {
 			if (Initialized) return;
 			Initialized = true;
-			MigrateLegacyFile("FarmWatch.statistics.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.statistics.json"), Path.Combine("plugins", "FarmWatch", "FarmWatch.statistics.json"));
-			MigrateLegacyFile("FarmWatch.farming.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.farming.json"), Path.Combine("plugins", "FarmWatch", "FarmWatch.farming.json"));
-			MigrateLegacyFile("FarmWatch.trades.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.trades.json"), Path.Combine("plugins", "FarmWatch", "FarmWatch.trades.json"));
+			Directory.CreateDirectory(StatisticsDirectory);
+			foreach (string fileName in new[] { "FarmWatch.statistics.json", "FarmWatch.farming.json", "FarmWatch.trades.json" }) {
+				MigrateLegacyFile(fileName, Path.Combine("plugins", "FarmWatch", fileName), Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, fileName), Path.Combine(StatisticsDirectory, fileName));
+			}
 			try {
 				if (File.Exists(StorePath)) {
 					List<ClaimEvent>? loaded = FarmWatchJson.Deserialize<List<ClaimEvent>>(File.ReadAllText(StorePath));
@@ -115,12 +117,25 @@ internal static class FarmWatchStatisticsStore {
 		}
 	}
 
-	private static void MigrateLegacyFile(string fileName, string legacyPath, string newPath) {
+	private static void MigrateLegacyFile(string fileName, string pluginLegacyPath, string configLegacyPath, string newPath) {
 		try {
-			if (File.Exists(legacyPath)) {
-				Directory.CreateDirectory(Path.GetDirectoryName(newPath)!);
-				if (!File.Exists(newPath)) File.Move(legacyPath, newPath);
-				else File.Delete(legacyPath);
+			Directory.CreateDirectory(StatisticsDirectory);
+			string[] legacyPaths = { pluginLegacyPath, configLegacyPath };
+			foreach (string legacyPath in legacyPaths) {
+				if (!File.Exists(legacyPath)) continue;
+				if (!File.Exists(newPath)) {
+					File.Copy(legacyPath, newPath, false);
+					string source = File.ReadAllText(legacyPath);
+					string migrated = File.ReadAllText(newPath);
+					if (!string.Equals(source, migrated, StringComparison.Ordinal)) {
+						File.Delete(newPath);
+						throw new InvalidDataException("Statistics migration verification failed for " + fileName + ".");
+					}
+				}
+				string backupDirectory = Path.Combine(Directory.GetCurrentDirectory(), "FarmWatchData", "Backups");
+				Directory.CreateDirectory(backupDirectory);
+				string backupName = fileName + ".legacy-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff") + ".bak";
+				File.Move(legacyPath, Path.Combine(backupDirectory, backupName), false);
 			}
 		} catch (Exception e) { ASF.ArchiLogger.LogGenericWarningException(e); }
 	}
@@ -192,9 +207,8 @@ internal static class FarmWatchStatisticsStore {
 
 	private static void SaveTradesLocked() {
 		try {
-			Directory.CreateDirectory(Path.Combine("plugins", "FarmWatch"));
-			File.WriteAllText(TradesTemporaryPath, FarmWatchJson.Serialize(Trades));
-			File.Move(TradesTemporaryPath, TradesPath, true);
+			Directory.CreateDirectory(StatisticsDirectory);
+			WriteTextAtomically(TradesTemporaryPath, TradesPath, FarmWatchJson.Serialize(Trades));
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
 		}
@@ -307,9 +321,8 @@ internal static class FarmWatchStatisticsStore {
 
 	private static void SaveClaimsLocked() {
 		try {
-			Directory.CreateDirectory(ArchiSteamFarm.SharedInfo.ConfigDirectory);
-			File.WriteAllText(TemporaryPath, FarmWatchJson.Serialize(Claims));
-			File.Move(TemporaryPath, StorePath, true);
+			Directory.CreateDirectory(StatisticsDirectory);
+			WriteTextAtomically(TemporaryPath, StorePath, FarmWatchJson.Serialize(Claims));
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
 		}
@@ -317,11 +330,18 @@ internal static class FarmWatchStatisticsStore {
 
 	private static void SaveFarmingLocked() {
 		try {
-			Directory.CreateDirectory(ArchiSteamFarm.SharedInfo.ConfigDirectory);
-			File.WriteAllText(FarmingTemporaryPath, FarmWatchJson.Serialize(FarmingSessions));
-			File.Move(FarmingTemporaryPath, FarmingPath, true);
+			Directory.CreateDirectory(StatisticsDirectory);
+			WriteTextAtomically(FarmingTemporaryPath, FarmingPath, FarmWatchJson.Serialize(FarmingSessions));
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
 		}
+	}
+
+	private static void WriteTextAtomically(string temporaryPath, string destinationPath, string content) {
+		using (FileStream stream = new(temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None)) {
+			using StreamWriter writer = new(stream);
+			writer.Write(content);
+		}
+		File.Move(temporaryPath, destinationPath, true);
 	}
 }

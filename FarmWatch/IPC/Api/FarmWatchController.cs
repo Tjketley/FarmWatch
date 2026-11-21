@@ -252,7 +252,7 @@ public sealed class FarmWatchController : ArchiController {
 
 			System.IO.File.Copy(configPath, backupPath, false);
 			if (changed) {
-				await System.IO.File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
+				await System.IO.File.WriteAllTextAsync(temporaryPath, JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
 				_ = JsonNode.Parse(await System.IO.File.ReadAllTextAsync(temporaryPath).ConfigureAwait(false)) ?? throw new InvalidDataException("Updated bot config could not be validated.");
 				System.IO.File.Move(temporaryPath, configPath, true);
 				replaced = true;

@@ -14,7 +14,7 @@
 		<Description>FarmWatch: guarded Steam Free-to-Keep discovery and optional licence activation for ArchiSteamFarm.</Description>
 		<PackageIcon />
 		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-		<PackageProjectUrl>https://github.com/Tjketley/FarmWatch-2</PackageProjectUrl>
+		<PackageProjectUrl>https://github.com/Tjketley/FarmWatch</PackageProjectUrl>
 		<PackageReleaseNotes>$(PackageProjectUrl)/releases</PackageReleaseNotes>
 		<RepositoryUrl>$(PackageProjectUrl).git</RepositoryUrl>
 	</PropertyGroup>
