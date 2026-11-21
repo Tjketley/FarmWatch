@@ -35,7 +35,7 @@ public sealed class FarmWatchConnectSerializationTests {
 		Assert.AreEqual("farmwatch-test-instance", root.GetProperty("instance_id").GetString());
 		Assert.AreEqual("2.0.0.11", root.GetProperty("statistics").GetProperty("farmwatch_version").GetString());
 		Assert.AreEqual(3, root.GetProperty("statistics").GetProperty("claim_summary").GetProperty("total").GetInt32());
-		Assert.AreEqual(123, root.GetProperty("claims")[0].GetProperty("target_id").GetUInt32());
+		Assert.AreEqual(123U, root.GetProperty("claims")[0].GetProperty("target_id").GetUInt32());
 
 		List<ConnectUploader.UploadEnvelope>? restored = JsonSerializer.Deserialize("[" + json + "]", FarmWatchJsonContext.Instance.ListUploadEnvelope);
 		Assert.IsNotNull(restored);
