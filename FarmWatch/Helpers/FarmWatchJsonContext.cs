@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 namespace FreePackages;
 
 [JsonSerializable(typeof(FarmWatchEvent))]
+[JsonSerializable(typeof(Dictionary<uint, uint>))]
 [JsonSerializable(typeof(ConnectUploader.UploadEnvelope))]
 [JsonSerializable(typeof(List<ConnectUploader.UploadEnvelope>))]
 [JsonSerializable(typeof(ConnectUploader.ConnectStatisticsSnapshot))]
