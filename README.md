@@ -103,6 +103,11 @@ FarmWatch uses Steam/ASF data needed to discover promotions, check package metad
 
 ## Current alpha validation notes
 
+**2.0.0.14 is an investigation build, not a beta or production release.** The package workflow no longer copies culture-specific `FarmWatch.resources.dll` satellite assemblies into the plugin directory. ASF 6.3.11.7 recursively enumerates every `.dll` under `plugins/` and calls `Assembly.LoadFrom`; the satellite assembly was therefore picked up as a plugin assembly even though .NET may already have loaded it for resource lookup, producing a duplicate assembly-name load warning/error. The release workflow now fails if any `*.resources.dll` is present in the plugin package.
+
+This intentionally prioritizes reliable plugin loading over the optional satellite translation assembly. Verify the generated ZIP contains only the main FarmWatch assembly plus non-DLL content, then test startup on ASF 6.3.11.7 ARM64.
+
+
 **2.0.0.13 is an investigation build, not a beta or production release.** The FarmWatch API controller now declares an absolute `/Api/FarmWatch` route so it does not accidentally combine with ASF's inherited `/Api` controller route. The bundled ASF UI already prefixes API requests with `/api`, so its FarmWatch requests should resolve to this controller.
 
 CI and Raspberry Pi verification are still required. Validate `GET /api/farmwatch/Status`, `GET /api/farmwatch/Statistics`, diagnostics/events, settings writes, and Connect status before calling the UI functional.
