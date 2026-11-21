@@ -21,7 +21,8 @@ internal static class ConnectUploader {
 	// Use HttpClient's default handler configuration: the AllowAutoRedirect setter is not present in every ASF-hosted runtime.
 	private static readonly HttpClient Client = new() { Timeout = TimeSpan.FromSeconds(20) };
 	private static readonly SemaphoreSlim Gate = new(1, 1);
-	private static readonly string OutboxPath = Path.Combine("plugins", "FarmWatch", "FarmWatch.Connect.outbox.json");
+	private static readonly string DataDirectory = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "FarmWatchData"));
+	private static readonly string OutboxPath = Path.Combine(DataDirectory, "FarmWatch.Connect.outbox.json");
 	private static readonly List<UploadEnvelope> Pending = new();
 	private static Timer? UploadTimer;
 	private static bool Initialized;
@@ -94,11 +95,23 @@ internal static class ConnectUploader {
 
 	private static async Task LoadOutbox() {
 		try {
-			string legacyPath = Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.Connect.outbox.json");
-			if (File.Exists(legacyPath)) {
-				Directory.CreateDirectory(Path.GetDirectoryName(OutboxPath)!);
-				if (!File.Exists(OutboxPath)) File.Move(legacyPath, OutboxPath);
-				else File.Delete(legacyPath);
+			string[] legacyPaths = {
+				Path.Combine("plugins", "FarmWatch", "FarmWatch.Connect.outbox.json"),
+				Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.Connect.outbox.json")
+			};
+			Directory.CreateDirectory(DataDirectory);
+			foreach (string legacyPath in legacyPaths) {
+				if (!File.Exists(legacyPath)) continue;
+				if (!File.Exists(OutboxPath)) {
+					File.Copy(legacyPath, OutboxPath, false);
+					// Verify the copied outbox before archiving the source.
+					string copiedJson = await File.ReadAllTextAsync(OutboxPath).ConfigureAwait(false);
+					_ = FarmWatchJson.Deserialize<List<UploadEnvelope>>(copiedJson) ?? throw new InvalidDataException("Migrated Connect outbox is invalid.");
+				}
+				string backupDirectory = Path.Combine(DataDirectory, "Backups");
+				Directory.CreateDirectory(backupDirectory);
+				string backupName = "FarmWatch.Connect.outbox.legacy-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff") + ".json";
+				File.Move(legacyPath, Path.Combine(backupDirectory, backupName), false);
 			}
 			if (!File.Exists(OutboxPath)) return;
 			string json = await File.ReadAllTextAsync(OutboxPath).ConfigureAwait(false);
@@ -111,7 +124,7 @@ internal static class ConnectUploader {
 	}
 
 	private static async Task SaveOutbox() {
-		Directory.CreateDirectory(Path.GetDirectoryName(OutboxPath)!);
+		Directory.CreateDirectory(DataDirectory);
 		string temporaryPath = OutboxPath + ".tmp";
 		string json = FarmWatchJson.Serialize(Pending);
 		await File.WriteAllTextAsync(temporaryPath, json).ConfigureAwait(false);
