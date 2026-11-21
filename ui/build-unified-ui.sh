@@ -38,11 +38,11 @@ replace_once(app, "</style>",
              "App.vue final theme import")
 # ASF-ui assumes the optional ECurrencyCode Swagger definition is always present.
 # Some ASF 6.3.11.7 deployments omit its x-definition extension; wallet labels
-# are non-critical, so keep the application initialisation path alive.
+# are non-critical, so keep application initialisation alive.
 asf_store = root / "src/store/modules/asf.js"
 replace_once(asf_store,
-             "    const codes = await getDefinitions('ECurrencyCode');\\n    commit('updateCurrencyCodes', codes);",
-             "    let codes = {};\\n    try { codes = await getDefinitions('ECurrencyCode') || {}; }\\n    catch (error) { console.warn('ASF wallet currency definitions are unavailable; wallet labels are disabled.', error); }\\n    commit('updateCurrencyCodes', codes);",
+             "    const codes = await getDefinitions('ECurrencyCode');",
+             "    let codes = {};\\n    try { codes = await getDefinitions('ECurrencyCode') || {}; }\\n    catch (error) { console.warn('ASF wallet currency definitions are unavailable; wallet labels are disabled.', error); }",
              "non-fatal wallet currency definition lookup")
 
 text = app.read_text()
