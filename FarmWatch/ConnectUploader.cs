@@ -21,7 +21,6 @@ internal static class ConnectUploader {
 	private static readonly HttpClient Client = new(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(20) };
 	private static readonly SemaphoreSlim Gate = new(1, 1);
 	private static readonly string OutboxPath = Path.Combine("plugins", "FarmWatch", "FarmWatch.Connect.outbox.json");
-	private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 	private static readonly List<UploadEnvelope> Pending = new();
 	private static Timer? UploadTimer;
 	private static bool Initialized;
@@ -102,7 +101,7 @@ internal static class ConnectUploader {
 			}
 			if (!File.Exists(OutboxPath)) return;
 			string json = await File.ReadAllTextAsync(OutboxPath).ConfigureAwait(false);
-			List<UploadEnvelope>? loaded = JsonSerializer.Deserialize<List<UploadEnvelope>>(json, JsonOptions);
+			List<UploadEnvelope>? loaded = JsonSerializer.Deserialize(json, FarmWatchJsonContext.Instance.ListUploadEnvelope);
 			if (loaded != null) Pending.AddRange(TakeNewest(loaded, MaximumPendingUploads));
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
@@ -113,7 +112,7 @@ internal static class ConnectUploader {
 	private static async Task SaveOutbox() {
 		Directory.CreateDirectory(Path.GetDirectoryName(OutboxPath)!);
 		string temporaryPath = OutboxPath + ".tmp";
-		string json = JsonSerializer.Serialize(Pending, JsonOptions);
+		string json = JsonSerializer.Serialize(Pending, FarmWatchJsonContext.Instance.ListUploadEnvelope);
 		await File.WriteAllTextAsync(temporaryPath, json).ConfigureAwait(false);
 		File.Move(temporaryPath, OutboxPath, true);
 	}
@@ -161,39 +160,33 @@ internal static class ConnectUploader {
 			}
 		}
 
-		var statistics = new {
-			farmwatch_version = typeof(FreePackages).Assembly.GetName().Version?.ToString() ?? "unknown",
-			claim_summary = FarmWatchStatisticsStore.GetClaimSummary(),
-			farming_summary = FarmWatchStatisticsStore.GetFarmingSummary(),
-			trade_summary = FarmWatchStatisticsStore.GetTradeSummary(),
-			global_auto_claim_enabled = FreePackages.FarmWatchAutoClaimEnabled,
-			observe_only = FreePackages.FarmWatchObserveOnly,
-			last_pics_change_number = FreePackages.GlobalCache?.LastChangeNumber ?? 0,
-			bots_total = bots.Count,
-			bots_connected = connectedBots,
-			bots_with_farmwatch = handlers.Count,
-			bots_auto_claim_enabled = autoClaimBots,
-			queued_packages = queued,
-			changed_apps = changedApps,
-			changed_packages = changedPackages,
-			new_owned_packages = ownedPackages,
-			seen_packages = seenPackages,
-			ignored_apps = ignoredApps,
-			waitlisted_playtests = playtests,
-			promotion_evidence = evidence,
-			activations_in_cache = activations,
-			last_activation_utc = lastActivation?.ToUniversalTime()
+		ConnectStatisticsSnapshot statistics = new() {
+			FarmWatchVersion = typeof(FreePackages).Assembly.GetName().Version?.ToString() ?? "unknown",
+			ClaimSummary = FarmWatchStatisticsStore.GetClaimSummary(),
+			FarmingSummary = FarmWatchStatisticsStore.GetFarmingSummary(),
+			TradeSummary = FarmWatchStatisticsStore.GetTradeSummary(),
+			GlobalAutoClaimEnabled = FreePackages.FarmWatchAutoClaimEnabled,
+			ObserveOnly = FreePackages.FarmWatchObserveOnly,
+			LastPicsChangeNumber = FreePackages.GlobalCache?.LastChangeNumber ?? 0,
+			BotsTotal = bots.Count,
+			BotsConnected = connectedBots,
+			BotsWithFarmWatch = handlers.Count,
+			BotsAutoClaimEnabled = autoClaimBots,
+			QueuedPackages = queued,
+			ChangedApps = changedApps,
+			ChangedPackages = changedPackages,
+			NewOwnedPackages = ownedPackages,
+			SeenPackages = seenPackages,
+			IgnoredApps = ignoredApps,
+			WaitlistedPlaytests = playtests,
+			PromotionEvidence = evidence,
+			ActivationsInCache = activations,
+			LastActivationUtc = lastActivation?.ToUniversalTime()
 		};
 
-		List<object> claims = new();
+		List<ConnectClaimSnapshot> claims = new();
 		foreach (FarmWatchStatisticsStore.ClaimEvent claim in TakeNewest(FarmWatchStatisticsStore.GetClaims(), 500)) {
-			claims.Add(new {
-				claim_id = claim.EventId,
-				target_type = claim.TargetType,
-				target_id = claim.TargetId,
-				claimed_at = claim.ClaimedAtUtc.ToUniversalTime().ToString("o"),
-				source = claim.Source
-			});
+			claims.Add(new ConnectClaimSnapshot { ClaimId = claim.EventId, TargetType = claim.TargetType, TargetId = claim.TargetId, ClaimedAt = claim.ClaimedAtUtc.ToUniversalTime().ToString("o"), Source = claim.Source });
 		}
 		return new UploadEnvelope {
 			SchemaVersion = 1,
@@ -201,7 +194,7 @@ internal static class ConnectUploader {
 			InstanceId = FarmWatchSettings.Current.ConnectInstanceId,
 			RecordedAt = DateTime.UtcNow,
 			Statistics = statistics,
-			Claims = claims.ToArray()
+			Claims = claims
 		};
 	}
 
@@ -226,7 +219,7 @@ internal static class ConnectUploader {
 				using HttpRequestMessage request = new(HttpMethod.Post, FarmWatchSettings.Current.ConnectEndpoint);
 				request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", FarmWatchSettings.Current.ConnectToken);
 				request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-				request.Content = new StringContent(JsonSerializer.Serialize(item, JsonOptions), Encoding.UTF8, "application/json");
+				request.Content = new StringContent(JsonSerializer.Serialize(item, FarmWatchJsonContext.Instance.UploadEnvelope), Encoding.UTF8, "application/json");
 
 				using HttpResponseMessage response = await Client.SendAsync(request).ConfigureAwait(false);
 				if (!response.IsSuccessStatusCode) {
@@ -255,7 +248,39 @@ internal static class ConnectUploader {
 		}
 	}
 
-	private sealed class UploadEnvelope {
+	internal sealed class ConnectStatisticsSnapshot {
+		[JsonPropertyName("farmwatch_version")] public string FarmWatchVersion { get; init; } = "unknown";
+		[JsonPropertyName("claim_summary")] public FarmWatchStatisticsStore.ClaimSummary ClaimSummary { get; init; } = new();
+		[JsonPropertyName("farming_summary")] public FarmWatchStatisticsStore.FarmingSummary FarmingSummary { get; init; } = new();
+		[JsonPropertyName("trade_summary")] public FarmWatchStatisticsStore.TradeSummary TradeSummary { get; init; } = new();
+		[JsonPropertyName("global_auto_claim_enabled")] public bool GlobalAutoClaimEnabled { get; init; }
+		[JsonPropertyName("observe_only")] public bool ObserveOnly { get; init; }
+		[JsonPropertyName("last_pics_change_number")] public uint LastPicsChangeNumber { get; init; }
+		[JsonPropertyName("bots_total")] public int BotsTotal { get; init; }
+		[JsonPropertyName("bots_connected")] public int BotsConnected { get; init; }
+		[JsonPropertyName("bots_with_farmwatch")] public int BotsWithFarmWatch { get; init; }
+		[JsonPropertyName("bots_auto_claim_enabled")] public int BotsAutoClaimEnabled { get; init; }
+		[JsonPropertyName("queued_packages")] public int QueuedPackages { get; init; }
+		[JsonPropertyName("changed_apps")] public int ChangedApps { get; init; }
+		[JsonPropertyName("changed_packages")] public int ChangedPackages { get; init; }
+		[JsonPropertyName("new_owned_packages")] public int NewOwnedPackages { get; init; }
+		[JsonPropertyName("seen_packages")] public int SeenPackages { get; init; }
+		[JsonPropertyName("ignored_apps")] public int IgnoredApps { get; init; }
+		[JsonPropertyName("waitlisted_playtests")] public int WaitlistedPlaytests { get; init; }
+		[JsonPropertyName("promotion_evidence")] public int PromotionEvidence { get; init; }
+		[JsonPropertyName("activations_in_cache")] public int ActivationsInCache { get; init; }
+		[JsonPropertyName("last_activation_utc")] public DateTime? LastActivationUtc { get; init; }
+	}
+
+	internal sealed class ConnectClaimSnapshot {
+		[JsonPropertyName("claim_id")] public string ClaimId { get; init; } = "";
+		[JsonPropertyName("target_type")] public string TargetType { get; init; } = "";
+		[JsonPropertyName("target_id")] public uint TargetId { get; init; }
+		[JsonPropertyName("claimed_at")] public string ClaimedAt { get; init; } = "";
+		[JsonPropertyName("source")] public string Source { get; init; } = "";
+	}
+
+	internal sealed class UploadEnvelope {
 		[JsonPropertyName("schema_version")]
 		public int SchemaVersion { get; init; }
 		[JsonPropertyName("upload_id")]
@@ -265,8 +290,8 @@ internal static class ConnectUploader {
 		[JsonPropertyName("recorded_at")]
 		public DateTime RecordedAt { get; init; }
 		[JsonPropertyName("statistics")]
-		public object Statistics { get; init; } = new();
+		public ConnectStatisticsSnapshot Statistics { get; init; } = new();
 		[JsonPropertyName("claims")]
-		public object[] Claims { get; init; } = Array.Empty<object>();
+		public List<ConnectClaimSnapshot> Claims { get; init; } = new();
 	}
 }
