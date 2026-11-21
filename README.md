@@ -105,6 +105,12 @@ FarmWatch uses Steam/ASF data needed to discover promotions, check package metad
 
 FarmWatch currently ships English only. The neutral `Strings.resx` is the sole localization resource; translated satellite resource files are intentionally excluded to keep the plugin package lean and avoid ASF recursively loading duplicate satellite assemblies.
 
+## 2.0.0.14 runtime compatibility work
+
+- Replaced Type-based `System.Text.Json` overloads with generic overloads so serialization resolves through FarmWatch's source-generated context on the System.Text.Json runtime hosted by ASF 6.3.11.7.
+- Removed the explicit `HttpClientHandler.AllowAutoRedirect` setter from ConnectUploader because that setter is unavailable in the runtime shown by the Raspberry Pi smoke-test logs.
+- This is a compatibility test build. Raspberry Pi validation is still required; Connect's redirect behaviour now uses the default HttpClient handler.
+
 ## Current alpha validation notes
 
 **2.0.0.13 is an investigation build, not a beta or production release.** The FarmWatch API controller now declares an absolute `/Api/FarmWatch` route so it does not accidentally combine with ASF's inherited `/Api` controller route. The bundled ASF UI already prefixes API requests with `/api`, so its FarmWatch requests should resolve to this controller.
