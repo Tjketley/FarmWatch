@@ -55,7 +55,7 @@ public sealed class FarmWatchController : ArchiController {
 		}
 		await FarmWatchSettings.Current.SetManualTradeBaseline(request.CompletedTrades).ConfigureAwait(false);
 		FarmWatchDiagnostics.Record("analytics", $"Pre-monitoring trade baseline set to {request.CompletedTrades}.");
-		return Ok(new GenericResponse<object>(new { manualBaseline = FarmWatchSettings.Current.ManualTradeBaseline, message = "Pre-monitoring trade total saved." });
+		return Ok(new GenericResponse<object>(new { manualBaseline = FarmWatchSettings.Current.ManualTradeBaseline, message = "Pre-monitoring trade total saved." }));
 	}
 
 	[HttpGet("ConnectStatus")]
@@ -70,7 +70,7 @@ public sealed class FarmWatchController : ArchiController {
 		bool configured = await ConnectUploader.Configure(request.Enabled, request.Endpoint, request.Token).ConfigureAwait(false);
 		if (!configured) return BadRequest(new GenericResponse(false, "When enabling Connect, provide an HTTPS WordPress upload endpoint and a valid Bearer token."));
 		FarmWatchDiagnostics.Record("connect", request.Enabled ? "WatchFarm Connect uploader enabled." : "WatchFarm Connect uploader disabled.");
-		return Ok(new GenericResponse<object>(new { status = ConnectUploader.GetStatus(), message = request.Enabled ? "Connect configured. The first statistics snapshot has been queued for upload." : "Connect uploader disabled. Pending uploads are retained locally." });
+		return Ok(new GenericResponse<object>(new { status = ConnectUploader.GetStatus(), message = request.Enabled ? "Connect configured. The first statistics snapshot has been queued for upload." : "Connect uploader disabled. Pending uploads are retained locally." }));
 	}
 
 	[HttpGet("Diagnostics")]
@@ -195,7 +195,7 @@ public sealed class FarmWatchController : ArchiController {
 				System.IO.File.Move(temporaryPath, configPath, true);
 			}
 			FarmWatchDiagnostics.Record("settings", "FarmWatch bot configuration added. Auto-claim uses the enabled-by-default setting.", bot.BotName, "success");
-			return Ok(new GenericResponse<object>(new { configured = true, changed, restartRequired = changed, message = changed ? "FarmWatch has been added. Restart this bot to load the plugin." : "This bot is already configured for FarmWatch." });
+			return Ok(new GenericResponse<object>(new { configured = true, changed, restartRequired = changed, message = changed ? "FarmWatch has been added. Restart this bot to load the plugin." : "This bot is already configured for FarmWatch." }));
 		} catch (Exception e) {
 			try { if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath); } catch { }
 			FarmWatchDiagnostics.Record("settings", "Could not configure FarmWatch for this bot.", bot.BotName, "error", e.Message);
