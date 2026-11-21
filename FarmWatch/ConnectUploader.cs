@@ -101,7 +101,7 @@ internal static class ConnectUploader {
 			}
 			if (!File.Exists(OutboxPath)) return;
 			string json = await File.ReadAllTextAsync(OutboxPath).ConfigureAwait(false);
-			List<UploadEnvelope>? loaded = JsonSerializer.Deserialize(json, FarmWatchJsonContext.Instance.ListUploadEnvelope);
+			List<UploadEnvelope>? loaded = FarmWatchJson.Deserialize<List<UploadEnvelope>>(json);
 			if (loaded != null) Pending.AddRange(TakeNewest(loaded, MaximumPendingUploads));
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
@@ -112,7 +112,7 @@ internal static class ConnectUploader {
 	private static async Task SaveOutbox() {
 		Directory.CreateDirectory(Path.GetDirectoryName(OutboxPath)!);
 		string temporaryPath = OutboxPath + ".tmp";
-		string json = JsonSerializer.Serialize(Pending, FarmWatchJsonContext.Instance.ListUploadEnvelope);
+		string json = FarmWatchJson.Serialize(Pending);
 		await File.WriteAllTextAsync(temporaryPath, json).ConfigureAwait(false);
 		File.Move(temporaryPath, OutboxPath, true);
 	}
@@ -219,7 +219,7 @@ internal static class ConnectUploader {
 				using HttpRequestMessage request = new(HttpMethod.Post, FarmWatchSettings.Current.ConnectEndpoint);
 				request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", FarmWatchSettings.Current.ConnectToken);
 				request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-				request.Content = new StringContent(JsonSerializer.Serialize(item, FarmWatchJsonContext.Instance.UploadEnvelope), Encoding.UTF8, "application/json");
+				request.Content = new StringContent(FarmWatchJson.Serialize(item), Encoding.UTF8, "application/json");
 
 				using HttpResponseMessage response = await Client.SendAsync(request).ConfigureAwait(false);
 				if (!response.IsSuccessStatusCode) {
