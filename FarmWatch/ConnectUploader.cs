@@ -230,7 +230,7 @@ internal static class ConnectUploader {
 
 				string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 				using JsonDocument document = JsonDocument.Parse(responseBody);
-				if (!document.RootElement.TryGetProperty("ok", out JsonElement ok) || ok.ValueKind != JsonValueKind.True) {
+				if (!IsAcknowledged(responseBody)) {
 					LastStatus = "Receiver did not acknowledge upload";
 					return;
 				}
