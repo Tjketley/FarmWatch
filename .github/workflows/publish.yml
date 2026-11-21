@@ -44,8 +44,8 @@ jobs:
           cp LICENSE README.md FarmWatch/CONNECT.md out/plugin-package/
           cp -R FarmWatch/www/. out/plugin-package/www/
           test -f "out/plugin-package/${PLUGIN_NAME}.dll"
-          if find out/plugin-package -type f -name "${PLUGIN_NAME}.resources.dll" | grep -q .; then
-            echo "Satellite resource assemblies must not be shipped; ASF recursively loads every DLL under plugins."
+          if find out/plugin-package -type f -name "*.resources.dll" | grep -q .; then
+            echo "Satellite resource assemblies must not be packaged: ASF recursively loads every DLL under plugins/."
             exit 1
           fi
           test -f out/plugin-package/www/index.html
