@@ -105,6 +105,12 @@ FarmWatch uses Steam/ASF data needed to discover promotions, check package metad
 
 FarmWatch currently ships English only. The neutral `Strings.resx` is the sole localization resource; translated satellite resource files are intentionally excluded to keep the plugin package lean and avoid ASF recursively loading duplicate satellite assemblies.
 
+## 2.0.0.16 API response compatibility
+
+**2.0.0.16 is an investigation build, not a beta or production release.** FarmWatch API success and error responses now use ASF's standard `GenericResponse` envelope (`Success`, `Message`, and `Result`). ASF-ui's shared HTTP client requires this envelope and rejects raw JSON objects even when the HTTP status is 200; this caused Overview, Analytics, Safety and Diagnostics to display load failures while direct endpoint checks returned HTTP 200. The release also makes the optional ASF wallet-currency schema lookup non-fatal when the Swagger schema does not expose the expected enum definition.
+
+Validation must confirm the browser receives `Success: true` and a populated `Result` for Status, Statistics, Diagnostics, Events and ConnectStatus; POST Settings, ConfigureBot, ConfigureAllBots, TradeBaseline and Connect must return the same envelope on success and ASF-compatible error envelopes on failure. Verify the dashboard in a clean browser session on ASF 6.3.11.7 ARM64, including settings persistence across restart. CI success does not replace the Raspberry Pi test.
+
 ## 2.0.0.14 runtime compatibility work
 
 - Replaced Type-based `System.Text.Json` overloads with generic overloads so serialization resolves through FarmWatch's source-generated context on the System.Text.Json runtime hosted by ASF 6.3.11.7.
