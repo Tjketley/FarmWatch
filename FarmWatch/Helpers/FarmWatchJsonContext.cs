@@ -5,6 +5,13 @@ using System.Text.Json.Serialization;
 namespace FreePackages;
 
 [JsonSerializable(typeof(FarmWatchEvent))]
+[JsonSerializable(typeof(ConnectUploader.UploadEnvelope))]
+[JsonSerializable(typeof(List<ConnectUploader.UploadEnvelope>))]
+[JsonSerializable(typeof(ConnectUploader.ConnectStatisticsSnapshot))]
+[JsonSerializable(typeof(List<ConnectUploader.ConnectClaimSnapshot>))]
+[JsonSerializable(typeof(FarmWatchStatisticsStore.ClaimSummary))]
+[JsonSerializable(typeof(FarmWatchStatisticsStore.FarmingSummary))]
+[JsonSerializable(typeof(FarmWatchStatisticsStore.TradeSummary))]
 [JsonSerializable(typeof(FarmWatchStatisticsStore.ClaimEvent))]
 [JsonSerializable(typeof(FarmWatchStatisticsStore.TradeEvent))]
 [JsonSerializable(typeof(FarmWatchStatisticsStore.FarmingSession))]
