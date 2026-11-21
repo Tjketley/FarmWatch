@@ -221,8 +221,8 @@ public sealed class FarmWatchController : ArchiController {
 		bool stopped = false, replaced = false, changed = false;
 
 		try {
-			if (!File.Exists(configPath)) return (false, false, false, "Bot configuration file was not found.");
-			JsonNode? parsed = JsonNode.Parse(await File.ReadAllTextAsync(configPath).ConfigureAwait(false));
+			if (!System.IO.File.Exists(configPath)) return (false, false, false, "Bot configuration file was not found.");
+			JsonNode? parsed = JsonNode.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false));
 			if (parsed is not JsonObject config) return (false, false, false, "Bot configuration JSON root is not an object.");
 
 			if (config["EnableFreePackages"] is JsonValue enableValue && enableValue.TryGetValue<bool>(out bool enabled)) {
@@ -250,16 +250,16 @@ public sealed class FarmWatchController : ArchiController {
 				stopped = true;
 			}
 
-			File.Copy(configPath, backupPath, false);
+			System.IO.File.Copy(configPath, backupPath, false);
 			if (changed) {
-				await File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
-				_ = JsonNode.Parse(await File.ReadAllTextAsync(temporaryPath).ConfigureAwait(false)) ?? throw new InvalidDataException("Updated bot config could not be validated.");
-				File.Move(temporaryPath, configPath, true);
+				await System.IO.File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
+				_ = JsonNode.Parse(await System.IO.File.ReadAllTextAsync(temporaryPath).ConfigureAwait(false)) ?? throw new InvalidDataException("Updated bot config could not be validated.");
+				System.IO.File.Move(temporaryPath, configPath, true);
 				replaced = true;
 			}
 
 			Dictionary<string, JsonElement> properties = new(StringComparer.OrdinalIgnoreCase);
-			using (JsonDocument document = JsonDocument.Parse(await File.ReadAllTextAsync(configPath).ConfigureAwait(false))) {
+			using (JsonDocument document = JsonDocument.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false))) {
 				foreach (JsonProperty property in document.RootElement.EnumerateObject()) properties[property.Name] = property.Value.Clone();
 			}
 			await FreePackages.InitializeBotModule(bot, properties).ConfigureAwait(false);
@@ -275,11 +275,11 @@ public sealed class FarmWatchController : ArchiController {
 			return (true, changed, restarted, changed ? (restarted ? "Configured, reinitialised and restarted." : "Configured and reinitialised; bot was already stopped.") : "Already configured; FarmWatch module is active.");
 		} catch (Exception e) {
 			try {
-				if (replaced && File.Exists(backupPath)) File.Copy(backupPath, configPath, true);
-				if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
-				if (replaced && File.Exists(configPath)) {
+				if (replaced && System.IO.File.Exists(backupPath)) System.IO.File.Copy(backupPath, configPath, true);
+				if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath);
+				if (replaced && System.IO.File.Exists(configPath)) {
 					Dictionary<string, JsonElement> original = new(StringComparer.OrdinalIgnoreCase);
-					using JsonDocument document = JsonDocument.Parse(await File.ReadAllTextAsync(configPath).ConfigureAwait(false));
+					using JsonDocument document = JsonDocument.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false));
 					foreach (JsonProperty property in document.RootElement.EnumerateObject()) original[property.Name] = property.Value.Clone();
 					await FreePackages.InitializeBotModule(bot, original).ConfigureAwait(false);
 				}
