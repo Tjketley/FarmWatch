@@ -18,7 +18,8 @@ namespace FreePackages;
 /// </summary>
 internal static class ConnectUploader {
 	private const int MaximumPendingUploads = 24;
-	private static readonly HttpClient Client = new(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(20) };
+	// Use HttpClient's default handler configuration: the AllowAutoRedirect setter is not present in every ASF-hosted runtime.
+	private static readonly HttpClient Client = new() { Timeout = TimeSpan.FromSeconds(20) };
 	private static readonly SemaphoreSlim Gate = new(1, 1);
 	private static readonly string OutboxPath = Path.Combine("plugins", "FarmWatch", "FarmWatch.Connect.outbox.json");
 	private static readonly List<UploadEnvelope> Pending = new();
