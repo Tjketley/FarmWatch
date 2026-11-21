@@ -41,10 +41,13 @@ jobs:
           dotnet publish FarmWatch -c Release -o out/plugin -p:ContinuousIntegrationBuild=true --nologo
           mkdir -p out/plugin-package/www
           cp "out/plugin/${PLUGIN_NAME}.dll" out/plugin-package/
-          ( cd out/plugin/ && cp --parents ./*/${PLUGIN_NAME}.resources.dll ../plugin-package/ || : )
           cp LICENSE README.md FarmWatch/CONNECT.md out/plugin-package/
           cp -R FarmWatch/www/. out/plugin-package/www/
           test -f "out/plugin-package/${PLUGIN_NAME}.dll"
+          if find out/plugin-package -type f -name "${PLUGIN_NAME}.resources.dll" | grep -q .; then
+            echo "Satellite resource assemblies must not be shipped; ASF recursively loads every DLL under plugins."
+            exit 1
+          fi
           test -f out/plugin-package/www/index.html
           test -f out/plugin-package/www/farmwatch-mark.svg
           test -f out/plugin-package/www/BUILD-INFO.txt
