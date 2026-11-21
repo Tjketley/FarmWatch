@@ -101,6 +101,10 @@ FarmWatch stores its settings and persistent data in `plugins/FarmWatch/`, keepi
 
 FarmWatch uses Steam/ASF data needed to discover promotions, check package metadata, and verify ownership for the separate free-DLC path. The FarmWatch dashboard is hosted locally by ASF. It does not send Steam credentials, cookies, session identifiers, or account library details to a FarmWatch-operated website. Any future companion website integration is intended to use aggregate statistics only.
 
+### Localization
+
+FarmWatch currently ships English only. The neutral `Strings.resx` is the sole localization resource; translated satellite resource files are intentionally excluded to keep the plugin package lean and avoid ASF recursively loading duplicate satellite assemblies.
+
 ## Current alpha validation notes
 
 **2.0.0.13 is an investigation build, not a beta or production release.** The FarmWatch API controller now declares an absolute `/Api/FarmWatch` route so it does not accidentally combine with ASF's inherited `/Api` controller route. The bundled ASF UI already prefixes API requests with `/api`, so its FarmWatch requests should resolve to this controller.
