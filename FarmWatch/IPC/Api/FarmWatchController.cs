@@ -178,12 +178,12 @@ public sealed class FarmWatchController : ArchiController {
 	public async Task<ActionResult<object>> ConfigureBot([FromBody] FarmWatchConfigureBotRequest request) {
 		if (request == null || string.IsNullOrWhiteSpace(request.BotName)) return BadRequest(new { error = "A bot name is required." });
 		Bot? bot = Bot.BotsReadOnly?.Values.FirstOrDefault(item => item.BotName.Equals(request.BotName, StringComparison.OrdinalIgnoreCase));
-		if (bot == null) return NotFound(new { error = "The requested ASF bot was not found." });
+		if (bot == null) return new ObjectResult(new { error = "The requested ASF bot was not found." }) { StatusCode = (int) HttpStatusCode.NotFound };
 
 		string configPath = Bot.GetFilePath(bot.BotName, Bot.EFileType.Config);
 		string temporaryPath = configPath + ".farmwatch.tmp";
 		try {
-			if (!System.IO.File.Exists(configPath)) return NotFound(new { error = "The bot configuration file was not found." });
+			if (!System.IO.File.Exists(configPath)) return new ObjectResult(new { error = "The bot configuration file was not found." }) { StatusCode = (int) HttpStatusCode.NotFound };
 			JsonNode? parsed = JsonNode.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false));
 			if (parsed is not JsonObject config) return BadRequest(new { error = "The bot configuration JSON root is not an object." });
 			bool changed = false;
@@ -271,7 +271,7 @@ public sealed class FarmWatchController : ArchiController {
 
 		if (request.BotName != null) {
 			if (request.BotAutoClaimEnabled == null || !PackageHandler.Handlers.TryGetValue(request.BotName, out PackageHandler? handler)) {
-				return NotFound(new { error = "FarmWatch bot was not found or its setting was not supplied." });
+				return new ObjectResult(new { error = "FarmWatch bot was not found or its setting was not supplied." }) { StatusCode = (int) HttpStatusCode.NotFound };
 			}
 
 			await FarmWatchSettings.Current.SetBot(request.BotName, request.BotAutoClaimEnabled.Value).ConfigureAwait(false);

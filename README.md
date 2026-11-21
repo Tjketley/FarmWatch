@@ -103,6 +103,11 @@ FarmWatch uses Steam/ASF data needed to discover promotions, check package metad
 
 ## Current alpha validation notes
 
+**2.0.0.12 is an investigation build, not a beta or production release.** It keeps the source-generated JSON metadata while switching calls to the long-standing Type-based serializer APIs, and replaces the MVC `NotFound(object)` response with an explicit `ObjectResult` status. This targets the missing-method failures reported on ASF 6.3.11.7 ARM64.
+
+The repository's ASF submodule is pinned to the signed ASF 6.3.11.7 tag commit. CI must build against that exact source pin. Raspberry Pi validation is still required for diagnostics writes, farming callbacks, PICS processing, dashboard settings updates, statistics persistence, and Connect upload/retry/acknowledgement.
+
+
 **2.0.0.11 is an investigation build, not a beta or production release.** It follows the Raspberry Pi startup fix in 2.0.0.10 and changes FarmWatch's diagnostics and statistics persistence to use one explicitly configured source-generated JSON context. The JSON naming policy remains camelCase for compatibility with existing FarmWatch data files.
 
 Connect outbox loading, persistence and HTTP payload generation now use strongly typed DTOs registered in the shared source-generated JSON context. Receiver acknowledgement parsing also rejects malformed or non-true responses, and automated tests cover the outbox envelope round-trip and acknowledgement rules. A live receiver/HTTP retry test and Raspberry Pi ASF 6.3.11.7 smoke test are still required before Connect or this alpha can be considered validated.

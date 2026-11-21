@@ -87,15 +87,15 @@ internal static class FarmWatchStatisticsStore {
 			MigrateLegacyFile("FarmWatch.trades.json", Path.Combine(ArchiSteamFarm.SharedInfo.ConfigDirectory, "FarmWatch.trades.json"), Path.Combine("plugins", "FarmWatch", "FarmWatch.trades.json"));
 			try {
 				if (File.Exists(StorePath)) {
-					List<ClaimEvent>? loaded = JsonSerializer.Deserialize(File.ReadAllText(StorePath), FarmWatchJsonContext.Instance.ListClaimEvent);
+					List<ClaimEvent>? loaded = FarmWatchJson.Deserialize<List<ClaimEvent>>(File.ReadAllText(StorePath));
 					if (loaded != null) Claims = loaded.Where(item => item != null && item.TargetId > 0 && item.ClaimedAtUtc != default).ToList();
 				}
 				if (File.Exists(TradesPath)) {
-					List<TradeEvent>? trades = JsonSerializer.Deserialize(File.ReadAllText(TradesPath), FarmWatchJsonContext.Instance.ListTradeEvent);
+					List<TradeEvent>? trades = FarmWatchJson.Deserialize<List<TradeEvent>>(File.ReadAllText(TradesPath));
 					if (trades != null) Trades = trades.Where(item => item != null && !string.IsNullOrEmpty(item.TradeId)).ToList();
 				}
 				if (File.Exists(FarmingPath)) {
-					List<FarmingSession>? sessions = JsonSerializer.Deserialize(File.ReadAllText(FarmingPath), FarmWatchJsonContext.Instance.ListFarmingSession);
+					List<FarmingSession>? sessions = FarmWatchJson.Deserialize<List<FarmingSession>>(File.ReadAllText(FarmingPath));
 					if (sessions != null) FarmingSessions = sessions.Where(item => item != null && item.StartedAtUtc != default).ToList();
 				}
 
@@ -193,7 +193,7 @@ internal static class FarmWatchStatisticsStore {
 	private static void SaveTradesLocked() {
 		try {
 			Directory.CreateDirectory(Path.Combine("plugins", "FarmWatch"));
-			File.WriteAllText(TradesTemporaryPath, JsonSerializer.Serialize(Trades, FarmWatchJsonContext.Instance.ListTradeEvent));
+			File.WriteAllText(TradesTemporaryPath, FarmWatchJson.Serialize(Trades));
 			File.Move(TradesTemporaryPath, TradesPath, true);
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
@@ -308,7 +308,7 @@ internal static class FarmWatchStatisticsStore {
 	private static void SaveClaimsLocked() {
 		try {
 			Directory.CreateDirectory(ArchiSteamFarm.SharedInfo.ConfigDirectory);
-			File.WriteAllText(TemporaryPath, JsonSerializer.Serialize(Claims, FarmWatchJsonContext.Instance.ListClaimEvent));
+			File.WriteAllText(TemporaryPath, FarmWatchJson.Serialize(Claims));
 			File.Move(TemporaryPath, StorePath, true);
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
@@ -318,7 +318,7 @@ internal static class FarmWatchStatisticsStore {
 	private static void SaveFarmingLocked() {
 		try {
 			Directory.CreateDirectory(ArchiSteamFarm.SharedInfo.ConfigDirectory);
-			File.WriteAllText(FarmingTemporaryPath, JsonSerializer.Serialize(FarmingSessions, FarmWatchJsonContext.Instance.ListFarmingSession));
+			File.WriteAllText(FarmingTemporaryPath, FarmWatchJson.Serialize(FarmingSessions));
 			File.Move(FarmingTemporaryPath, FarmingPath, true);
 		} catch (Exception e) {
 			ASF.ArchiLogger.LogGenericWarningException(e);
