@@ -42,7 +42,7 @@ replace_once(app, "</style>",
 asf_store = root / "src/store/modules/asf.js"
 replace_once(asf_store,
              "    const codes = await getDefinitions('ECurrencyCode');",
-             "    let codes = {};\\n    try { codes = await getDefinitions('ECurrencyCode') || {}; }\\n    catch (error) { console.warn('ASF wallet currency definitions are unavailable; wallet labels are disabled.', error); }",
+             "    let codes = {};\n    try { codes = await getDefinitions('ECurrencyCode') || {}; }\n    catch (error) { console.warn('ASF wallet currency definitions are unavailable; wallet labels are disabled.', error); }",
              "non-fatal wallet currency definition lookup")
 
 text = app.read_text()
