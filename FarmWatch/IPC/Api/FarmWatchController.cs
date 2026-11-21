@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FreePackages.IPC;
 
-[Route("Api/FarmWatch")]
+[Route("/Api/FarmWatch")]
 public sealed class FarmWatchController : ArchiController {
 	[HttpGet("Status")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
