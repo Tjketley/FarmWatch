@@ -105,7 +105,7 @@ FarmWatch uses Steam/ASF data needed to discover promotions, check package metad
 
 **2.0.0.11 is an investigation build, not a beta or production release.** It follows the Raspberry Pi startup fix in 2.0.0.10 and changes FarmWatch's diagnostics and statistics persistence to use one explicitly configured source-generated JSON context. The JSON naming policy remains camelCase for compatibility with existing FarmWatch data files.
 
-The optional Connect uploader still requires a separate end-to-end serialization and transport verification. Do not treat Connect as working until its outbox can be loaded, saved, uploaded and acknowledged on the target ASF installation.
+Connect outbox loading, persistence and HTTP payload generation now use strongly typed DTOs registered in the shared source-generated JSON context. Receiver acknowledgement parsing also rejects malformed or non-true responses, and automated tests cover the outbox envelope round-trip and acknowledgement rules. A live receiver/HTTP retry test and Raspberry Pi ASF 6.3.11.7 smoke test are still required before Connect or this alpha can be considered validated.
 
 ## Development and validation
 
