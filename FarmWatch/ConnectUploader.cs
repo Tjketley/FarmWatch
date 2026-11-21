@@ -54,7 +54,7 @@ internal static class ConnectUploader {
 				!string.IsNullOrEmpty(uri.Query) ||
 				!string.IsNullOrEmpty(uri.Fragment) ||
 				string.IsNullOrWhiteSpace(token) ||
-				!System.Text.RegularExpressions.Regex.IsMatch(token, "^[A-Za-z0-9_-]{32,128}$")) {
+				!IsValidToken(token)) {
 				return false;
 			}
 
@@ -76,6 +76,17 @@ internal static class ConnectUploader {
 		UploadTimer?.Dispose();
 		UploadTimer = null;
 		LastStatus = "Disabled";
+		return true;
+	}
+
+	private static bool IsValidToken(string token) {
+		if (token.Length < 32 || token.Length > 128) return false;
+		foreach (char character in token) {
+			if (!((character >= 'A' && character <= 'Z') ||
+				(character >= 'a' && character <= 'z') ||
+				(character >= '0' && character <= '9') ||
+				character == '_' || character == '-')) return false;
+		}
 		return true;
 	}
 
