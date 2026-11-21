@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using ArchiSteamFarm.IPC.Controllers.Api;
+using ArchiSteamFarm.IPC.Responses;
 using ArchiSteamFarm.Steam;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,7 +17,7 @@ namespace FreePackages.IPC;
 public sealed class FarmWatchController : ArchiController {
 	[HttpGet("Status")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
-	public ActionResult<object> GetStatus() {
+	public ActionResult<GenericResponse> GetStatus() {
 		List<object> bots = new();
 		if (Bot.BotsReadOnly != null) {
 			foreach (Bot bot in Bot.BotsReadOnly.Values) {
@@ -31,50 +32,50 @@ public sealed class FarmWatchController : ArchiController {
 				});
 			}
 		}
-		return Ok(new {
+		return Ok(new GenericResponse<object>(new {
 			name = "FarmWatch",
 			version = typeof(FreePackages).Assembly.GetName().Version?.ToString() ?? "unknown",
 			globalAutoClaimEnabled = FreePackages.FarmWatchAutoClaimEnabled,
 			observeOnly = FreePackages.FarmWatchObserveOnly,
 			bots
-		});
+		}));
 	}
 	[HttpGet("Statistics")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
-	public ActionResult<object> GetStatistics([FromQuery] int limit = 50) {
-		return Ok(FarmWatchStatisticsStore.GetDashboardStatistics(Math.Clamp(limit, 1, 200)));
+	public ActionResult<GenericResponse> GetStatistics([FromQuery] int limit = 50) {
+		return Ok(new GenericResponse<object>(FarmWatchStatisticsStore.GetDashboardStatistics(Math.Clamp(limit, 1, 200))));
 	}
 
 	[HttpPost("TradeBaseline")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	[ProducesResponseType((int) HttpStatusCode.BadRequest)]
-	public async Task<ActionResult<object>> SetTradeBaseline([FromBody] FarmWatchTradeBaselineRequest request) {
+	public async Task<ActionResult<GenericResponse>> SetTradeBaseline([FromBody] FarmWatchTradeBaselineRequest request) {
 		if (request == null || request.CompletedTrades < 0 || request.CompletedTrades > 1_000_000_000) {
-			return BadRequest(new { error = "Enter a completed-trade count between 0 and 1,000,000,000." });
+			return BadRequest(new GenericResponse(false, "Enter a completed-trade count between 0 and 1,000,000,000."));
 		}
 		await FarmWatchSettings.Current.SetManualTradeBaseline(request.CompletedTrades).ConfigureAwait(false);
 		FarmWatchDiagnostics.Record("analytics", $"Pre-monitoring trade baseline set to {request.CompletedTrades}.");
-		return Ok(new { manualBaseline = FarmWatchSettings.Current.ManualTradeBaseline, message = "Pre-monitoring trade total saved." });
+		return Ok(new GenericResponse<object>(new { manualBaseline = FarmWatchSettings.Current.ManualTradeBaseline, message = "Pre-monitoring trade total saved." });
 	}
 
 	[HttpGet("ConnectStatus")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
-	public ActionResult<object> GetConnectStatus() => Ok(ConnectUploader.GetStatus());
+	public ActionResult<GenericResponse> GetConnectStatus() => Ok(new GenericResponse<object>(ConnectUploader.GetStatus()));
 
 	[HttpPost("Connect")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	[ProducesResponseType((int) HttpStatusCode.BadRequest)]
-	public async Task<ActionResult<object>> ConfigureConnect([FromBody] FarmWatchConnectRequest request) {
-		if (request == null) return BadRequest(new { error = "A Connect configuration is required." });
+	public async Task<ActionResult<GenericResponse>> ConfigureConnect([FromBody] FarmWatchConnectRequest request) {
+		if (request == null) return BadRequest(new GenericResponse(false, "A Connect configuration is required."));
 		bool configured = await ConnectUploader.Configure(request.Enabled, request.Endpoint, request.Token).ConfigureAwait(false);
-		if (!configured) return BadRequest(new { error = "When enabling Connect, provide an HTTPS WordPress upload endpoint and a valid Bearer token." });
+		if (!configured) return BadRequest(new GenericResponse(false, "When enabling Connect, provide an HTTPS WordPress upload endpoint and a valid Bearer token."));
 		FarmWatchDiagnostics.Record("connect", request.Enabled ? "WatchFarm Connect uploader enabled." : "WatchFarm Connect uploader disabled.");
-		return Ok(new { status = ConnectUploader.GetStatus(), message = request.Enabled ? "Connect configured. The first statistics snapshot has been queued for upload." : "Connect uploader disabled. Pending uploads are retained locally." });
+		return Ok(new GenericResponse<object>(new { status = ConnectUploader.GetStatus(), message = request.Enabled ? "Connect configured. The first statistics snapshot has been queued for upload." : "Connect uploader disabled. Pending uploads are retained locally." });
 	}
 
 	[HttpGet("Diagnostics")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
-	public ActionResult<object> GetDiagnostics() {
+	public ActionResult<GenericResponse> GetDiagnostics() {
 		List<object> bots = new();
 		foreach (PackageHandler handler in PackageHandler.Handlers.Values) {
 			List<Package> queuedPackages = new(handler.BotCache.Packages);
@@ -143,7 +144,7 @@ public sealed class FarmWatchController : ArchiController {
 			});
 		}
 
-		return Ok(new {
+		return Ok(new GenericResponse<object>(new {
 			name = "FarmWatch",
 			version = typeof(FreePackages).Assembly.GetName().Version?.ToString() ?? "unknown",
 			generatedAtUtc = DateTime.UtcNow,
@@ -154,20 +155,20 @@ public sealed class FarmWatchController : ArchiController {
 				handlerCount = PackageHandler.Handlers.Count
 			},
 			bots
-		});
+		}));
 	}
 	[HttpGet("Events")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
-	public ActionResult<object> GetEvents([FromQuery] int limit = 200) {
+	public ActionResult<GenericResponse> GetEvents([FromQuery] int limit = 200) {
 		int safeLimit = Math.Clamp(limit, 1, 500);
-		return Ok(new {
+		return Ok(new GenericResponse<object>(new {
 			generatedAtUtc = DateTime.UtcNow,
 			persistent = FarmWatchDiagnostics.IsPersistent,
 			storageFile = FarmWatchDiagnostics.StorageFileName,
 			limit = safeLimit,
 			retainedEvents = FarmWatchDiagnostics.GetRecent(500).Length,
 			events = FarmWatchDiagnostics.GetRecent(safeLimit)
-		});
+		}));
 	}
 
 
@@ -175,17 +176,17 @@ public sealed class FarmWatchController : ArchiController {
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	[ProducesResponseType((int) HttpStatusCode.BadRequest)]
 	[ProducesResponseType((int) HttpStatusCode.NotFound)]
-	public async Task<ActionResult<object>> ConfigureBot([FromBody] FarmWatchConfigureBotRequest request) {
-		if (request == null || string.IsNullOrWhiteSpace(request.BotName)) return BadRequest(new { error = "A bot name is required." });
+	public async Task<ActionResult<GenericResponse>> ConfigureBot([FromBody] FarmWatchConfigureBotRequest request) {
+		if (request == null || string.IsNullOrWhiteSpace(request.BotName)) return BadRequest(new GenericResponse(false, "A bot name is required."));
 		Bot? bot = Bot.BotsReadOnly?.Values.FirstOrDefault(item => item.BotName.Equals(request.BotName, StringComparison.OrdinalIgnoreCase));
-		if (bot == null) return new ObjectResult(new { error = "The requested ASF bot was not found." }) { StatusCode = (int) HttpStatusCode.NotFound };
+		if (bot == null) return new ObjectResult(new GenericResponse(false, "The requested ASF bot was not found.")) { StatusCode = (int) HttpStatusCode.NotFound };
 
 		string configPath = Bot.GetFilePath(bot.BotName, Bot.EFileType.Config);
 		string temporaryPath = configPath + ".farmwatch.tmp";
 		try {
-			if (!System.IO.File.Exists(configPath)) return new ObjectResult(new { error = "The bot configuration file was not found." }) { StatusCode = (int) HttpStatusCode.NotFound };
+			if (!System.IO.File.Exists(configPath)) return new ObjectResult(new GenericResponse(false, "The bot configuration file was not found.")) { StatusCode = (int) HttpStatusCode.NotFound };
 			JsonNode? parsed = JsonNode.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false));
-			if (parsed is not JsonObject config) return BadRequest(new { error = "The bot configuration JSON root is not an object." });
+			if (parsed is not JsonObject config) return BadRequest(new GenericResponse(false, "The bot configuration JSON root is not an object."));
 			bool changed = false;
 			if (config["EnableFreePackages"]?.GetValue<bool>() != true) { config["EnableFreePackages"] = true; changed = true; }
 			if (config["FarmWatchAutoClaimEnabled"] == null) { config["FarmWatchAutoClaimEnabled"] = true; changed = true; }
@@ -194,17 +195,17 @@ public sealed class FarmWatchController : ArchiController {
 				System.IO.File.Move(temporaryPath, configPath, true);
 			}
 			FarmWatchDiagnostics.Record("settings", "FarmWatch bot configuration added. Auto-claim uses the enabled-by-default setting.", bot.BotName, "success");
-			return Ok(new { configured = true, changed, restartRequired = changed, message = changed ? "FarmWatch has been added. Restart this bot to load the plugin." : "This bot is already configured for FarmWatch." });
+			return Ok(new GenericResponse<object>(new { configured = true, changed, restartRequired = changed, message = changed ? "FarmWatch has been added. Restart this bot to load the plugin." : "This bot is already configured for FarmWatch." });
 		} catch (Exception e) {
 			try { if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath); } catch { }
 			FarmWatchDiagnostics.Record("settings", "Could not configure FarmWatch for this bot.", bot.BotName, "error", e.Message);
-			return BadRequest(new { error = "Could not update bot configuration: " + e.Message });
+			return BadRequest(new GenericResponse(false, "Could not update bot configuration: " + e.Message));
 		}
 	}
 
 	[HttpPost("ConfigureAllBots")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
-	public async Task<ActionResult<object>> ConfigureAllBots() {
+	public async Task<ActionResult<GenericResponse>> ConfigureAllBots() {
 		int configured = 0;
 		int unchanged = 0;
 		List<string> failed = new();
@@ -251,27 +252,27 @@ public sealed class FarmWatchController : ArchiController {
 			}
 		}
 
-		return Ok(new {
+		return Ok(new GenericResponse<object>(new {
 			configured,
 			unchanged,
 			failed,
 			restartRequired = configured > 0,
 			message = configured > 0 ? "FarmWatch settings were added. Restart the affected bots to load the plugin module." : "No bot configuration files needed changes."
-		});
+		}));
 	}
 
 	[HttpPost("Settings")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	[ProducesResponseType((int) HttpStatusCode.BadRequest)]
 	[ProducesResponseType((int) HttpStatusCode.NotFound)]
-	public async Task<ActionResult<object>> UpdateSettings([FromBody] FarmWatchSettingsRequest request) {
+	public async Task<ActionResult<GenericResponse>> UpdateSettings([FromBody] FarmWatchSettingsRequest request) {
 		if (request == null || (request.AutoClaimEnabled == null && request.ObserveOnly == null && (request.BotName == null || request.BotAutoClaimEnabled == null))) {
-			return BadRequest(new { error = "No settings were supplied." });
+			return BadRequest(new GenericResponse(false, "No settings were supplied."));
 		}
 
 		if (request.BotName != null) {
 			if (request.BotAutoClaimEnabled == null || !PackageHandler.Handlers.TryGetValue(request.BotName, out PackageHandler? handler)) {
-				return new ObjectResult(new { error = "FarmWatch bot was not found or its setting was not supplied." }) { StatusCode = (int) HttpStatusCode.NotFound };
+				return new ObjectResult(new GenericResponse(false, "FarmWatch bot was not found or its setting was not supplied.")) { StatusCode = (int) HttpStatusCode.NotFound };
 			}
 
 			await FarmWatchSettings.Current.SetBot(request.BotName, request.BotAutoClaimEnabled.Value).ConfigureAwait(false);
@@ -287,11 +288,11 @@ public sealed class FarmWatchController : ArchiController {
 			FreePackages.ApplyGlobalSettings(autoClaim, observeOnly);
 		}
 
-		return Ok(new {
+		return Ok(new GenericResponse<object>(new {
 			globalAutoClaimEnabled = FreePackages.FarmWatchAutoClaimEnabled,
 			observeOnly = FreePackages.FarmWatchObserveOnly,
 			message = "FarmWatch settings saved."
-		});
+		}));
 	}
 }
 
