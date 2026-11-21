@@ -103,7 +103,13 @@ namespace FreePackages {
 			ASFInfo.Update();
 		}
 
-		public async Task OnBotInitModules(Bot bot, IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null) {
+		public Task OnBotInitModules(Bot bot, IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null) {
+			return InitializeBotModule(bot, additionalConfigProperties);
+		}
+
+		// Shared by ASF's normal module-init callback and the in-place configure
+		// workflow after it has safely replaced a bot's JSON configuration.
+		internal static async Task InitializeBotModule(Bot bot, IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties) {
 			if (additionalConfigProperties == null) {
 				return;
 			}
@@ -117,56 +123,34 @@ namespace FreePackages {
 
 			foreach (KeyValuePair<string, JsonElement> configProperty in additionalConfigProperties) {
 				switch (configProperty.Key) {
-					case "EnableFreePackages" when (configProperty.Value.ValueKind == JsonValueKind.True || configProperty.Value.ValueKind == JsonValueKind.False): {
+					case "EnableFreePackages" when configProperty.Value.ValueKind is JsonValueKind.True or JsonValueKind.False:
 						isEnabled = configProperty.Value.GetBoolean();
-						bot.ArchiLogger.LogGenericInfo("Enable Free Packages : " + isEnabled.ToString());
 						break;
-					}
-					
-					case "PauseFreePackagesWhilePlaying" when (configProperty.Value.ValueKind == JsonValueKind.True || configProperty.Value.ValueKind == JsonValueKind.False): {
+					case "PauseFreePackagesWhilePlaying" when configProperty.Value.ValueKind is JsonValueKind.True or JsonValueKind.False:
 						pauseWhilePlaying = configProperty.Value.GetBoolean();
-						bot.ArchiLogger.LogGenericInfo("Pause Free Packages While Playing : " + pauseWhilePlaying.ToString());
 						break;
-					}
-					
-					case "FarmWatchAutoClaimEnabled" when (configProperty.Value.ValueKind == JsonValueKind.True || configProperty.Value.ValueKind == JsonValueKind.False): {
+					case "FarmWatchAutoClaimEnabled" when configProperty.Value.ValueKind is JsonValueKind.True or JsonValueKind.False:
 						farmWatchEnabled = configProperty.Value.GetBoolean();
-						bot.ArchiLogger.LogGenericInfo("FarmWatch auto-claim for this bot : " + farmWatchEnabled.ToString());
 						break;
-					}
-
-					case "PauseFreePackagesWhileFarming" when (configProperty.Value.ValueKind == JsonValueKind.True || configProperty.Value.ValueKind == JsonValueKind.False): {
+					case "PauseFreePackagesWhileFarming" when configProperty.Value.ValueKind is JsonValueKind.True or JsonValueKind.False:
 						pauseWhileFarming = configProperty.Value.GetBoolean();
-						bot.ArchiLogger.LogGenericInfo("Pause Free Packages While Farming : " + pauseWhileFarming.ToString());
 						break;
-					}
-
-					case "FreePackagesPerHour" or "FreePackagesLimit" when configProperty.Value.ValueKind == JsonValueKind.Number: {
+					case "FreePackagesPerHour" or "FreePackagesLimit" when configProperty.Value.ValueKind == JsonValueKind.Number:
 						packageLimit = configProperty.Value.ToJsonObject<uint>();
-						bot.ArchiLogger.LogGenericInfo("Free Packages Limit : " + packageLimit.ToString());
 						break;
-					}
-
 					case "FreePackagesFilter": {
 						FilterConfig? filter = configProperty.Value.ToJsonObject<FilterConfig>();
-						if (filter != null) {
-							bot.ArchiLogger.LogGenericInfo("Free Packages Filter : " + filter.ToJsonText());
-							filterConfigs.Add(filter);
-						}
+						if (filter != null) filterConfigs.Add(filter);
 						break;
 					}
-					
 					case "FreePackagesFilters": {
 						List<FilterConfig>? filters = configProperty.Value.ToJsonObject<List<FilterConfig>>();
-						if (filters != null) {
-							bot.ArchiLogger.LogGenericInfo("Free Packages Filters : " + filters.ToJsonText());
-							filterConfigs.AddRange(filters);
-						}
+					if (filters != null) filterConfigs.AddRange(filters);
 						break;
 					}
 				}
 			}
-			
+
 			if (FarmWatchSettings.Current.BotAutoClaim.TryGetValue(bot.BotName, out bool savedBotSetting)) {
 				farmWatchEnabled = savedBotSetting;
 			}
@@ -175,7 +159,6 @@ namespace FreePackages {
 				await PackageHandler.AddHandler(bot, filterConfigs, packageLimit, pauseWhilePlaying, pauseWhileFarming, farmWatchEnabled).ConfigureAwait(false);
 			}
 		}
-
 		public Task<uint> GetPreferredChangeNumberToStartFrom() {
 			return Task.FromResult(GlobalCache?.LastChangeNumber ?? 0);
 		}

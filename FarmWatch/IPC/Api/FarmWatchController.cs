@@ -6,6 +6,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using ArchiSteamFarm.Core;
 using ArchiSteamFarm.IPC.Controllers.Api;
 using ArchiSteamFarm.IPC.Responses;
 using ArchiSteamFarm.Steam;
@@ -67,10 +68,17 @@ public sealed class FarmWatchController : ArchiController {
 	[ProducesResponseType((int) HttpStatusCode.BadRequest)]
 	public async Task<ActionResult<GenericResponse>> ConfigureConnect([FromBody] FarmWatchConnectRequest request) {
 		if (request == null) return BadRequest(new GenericResponse(false, "A Connect configuration is required."));
-		bool configured = await ConnectUploader.Configure(request.Enabled, request.Endpoint, request.Token).ConfigureAwait(false);
-		if (!configured) return BadRequest(new GenericResponse(false, "When enabling Connect, provide an HTTPS WordPress upload endpoint and a valid Bearer token."));
-		FarmWatchDiagnostics.Record("connect", request.Enabled ? "WatchFarm Connect uploader enabled." : "WatchFarm Connect uploader disabled.");
-		return Ok(new GenericResponse<object>(new { status = ConnectUploader.GetStatus(), message = request.Enabled ? "Connect configured. The first statistics snapshot has been queued for upload." : "Connect uploader disabled. Pending uploads are retained locally." }));
+		try {
+			bool configured = await ConnectUploader.Configure(request.Enabled, request.Endpoint, request.Token).ConfigureAwait(false);
+			if (!configured) return BadRequest(new GenericResponse(false, "Invalid Connect configuration. Enabling requires an HTTPS endpoint without query/fragment/user-info and a 32-128 character Bearer token using letters, numbers, underscore or hyphen."));
+			FarmWatchDiagnostics.Record("connect", request.Enabled ? "WatchFarm Connect uploader enabled." : "WatchFarm Connect uploader disabled.");
+			return Ok(new GenericResponse<object>(new { status = ConnectUploader.GetStatus(), message = request.Enabled ? "Connect configured. The first statistics snapshot has been queued for upload." : "Connect uploader disabled. Pending uploads are retained locally." }));
+		} catch (Exception e) {
+			string errorId = Guid.NewGuid().ToString("N");
+			ASF.ArchiLogger.LogGenericWarningException(e);
+			FarmWatchDiagnostics.Record("connect", "Connect configuration failed. Reference: " + errorId, level: "error", details: e.ToString());
+			return new ObjectResult(new GenericResponse(false, "Connect configuration failed. Reference: " + errorId + ". Check FarmWatch Events/ASF logs for the exception.")) { StatusCode = (int) HttpStatusCode.InternalServerError };
+		}
 	}
 
 	[HttpGet("Diagnostics")]
@@ -181,84 +189,109 @@ public sealed class FarmWatchController : ArchiController {
 		Bot? bot = Bot.BotsReadOnly?.Values.FirstOrDefault(item => item.BotName.Equals(request.BotName, StringComparison.OrdinalIgnoreCase));
 		if (bot == null) return new ObjectResult(new GenericResponse(false, "The requested ASF bot was not found.")) { StatusCode = (int) HttpStatusCode.NotFound };
 
-		string configPath = Bot.GetFilePath(bot.BotName, Bot.EFileType.Config);
-		string temporaryPath = configPath + ".farmwatch.tmp";
-		try {
-			if (!System.IO.File.Exists(configPath)) return new ObjectResult(new GenericResponse(false, "The bot configuration file was not found.")) { StatusCode = (int) HttpStatusCode.NotFound };
-			JsonNode? parsed = JsonNode.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false));
-			if (parsed is not JsonObject config) return BadRequest(new GenericResponse(false, "The bot configuration JSON root is not an object."));
-			bool changed = false;
-			if (config["EnableFreePackages"]?.GetValue<bool>() != true) { config["EnableFreePackages"] = true; changed = true; }
-			if (config["FarmWatchAutoClaimEnabled"] == null) { config["FarmWatchAutoClaimEnabled"] = true; changed = true; }
-			if (changed) {
-				await System.IO.File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
-				System.IO.File.Move(temporaryPath, configPath, true);
-			}
-			FarmWatchDiagnostics.Record("settings", "FarmWatch bot configuration added. Auto-claim uses the enabled-by-default setting.", bot.BotName, "success");
-			return Ok(new GenericResponse<object>(new { configured = true, changed, restartRequired = changed, message = changed ? "FarmWatch has been added. Restart this bot to load the plugin." : "This bot is already configured for FarmWatch." }));
-		} catch (Exception e) {
-			try { if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath); } catch { }
-			FarmWatchDiagnostics.Record("settings", "Could not configure FarmWatch for this bot.", bot.BotName, "error", e.Message);
-			return BadRequest(new GenericResponse(false, "Could not update bot configuration: " + e.Message));
-		}
+		(bool success, bool changed, bool restarted, string message) = await ConfigureBotSafely(bot).ConfigureAwait(false);
+		if (!success) return BadRequest(new GenericResponse(false, message));
+		return Ok(new GenericResponse<object>(new { configured = true, changed, restarted, restartRequired = false, message }));
 	}
 
 	[HttpPost("ConfigureAllBots")]
 	[ProducesResponseType((int) HttpStatusCode.OK)]
 	public async Task<ActionResult<GenericResponse>> ConfigureAllBots() {
-		int configured = 0;
-		int unchanged = 0;
-		List<string> failed = new();
-
+		int configured = 0, unchanged = 0, restarted = 0;
+		List<object> results = new();
 		foreach (Bot bot in Bot.BotsReadOnly?.Values.OrderBy(bot => bot.BotName) ?? Enumerable.Empty<Bot>()) {
-			string configPath = Bot.GetFilePath(bot.BotName, Bot.EFileType.Config);
-			string temporaryPath = configPath + ".farmwatch.tmp";
-
-			try {
-				if (!System.IO.File.Exists(configPath)) {
-					failed.Add(bot.BotName + ": config file not found");
-					continue;
-				}
-
-				JsonNode? parsed = JsonNode.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false));
-				if (parsed is not JsonObject config) {
-					failed.Add(bot.BotName + ": config JSON root is not an object");
-					continue;
-				}
-
-				bool changed = false;
-				if (config["EnableFreePackages"]?.GetValue<bool>() != true) {
-					config["EnableFreePackages"] = true;
-					changed = true;
-				}
-				if (config["FarmWatchAutoClaimEnabled"] == null) {
-					config["FarmWatchAutoClaimEnabled"] = true;
-					changed = true;
-				}
-
-				if (!changed) {
-					unchanged++;
-					continue;
-				}
-
-				await System.IO.File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
-				System.IO.File.Move(temporaryPath, configPath, true);
-				configured++;
-				FarmWatchDiagnostics.Record("settings", "FarmWatch bot configuration added to bot JSON. Auto-claim is enabled by default for this bot.", bot.BotName, "success");
-			} catch (Exception e) {
-				try { if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath); } catch { }
-				failed.Add(bot.BotName + ": " + e.Message);
-				FarmWatchDiagnostics.Record("settings", "Could not update bot JSON for FarmWatch setup.", bot.BotName, "error", e.Message);
+			(bool success, bool changed, bool wasRestarted, string message) = await ConfigureBotSafely(bot).ConfigureAwait(false);
+			if (success) {
+				if (changed) configured++; else unchanged++;
+				if (wasRestarted) restarted++;
 			}
+			results.Add(new { bot = bot.BotName, success, changed, restarted = wasRestarted, message });
 		}
-
 		return Ok(new GenericResponse<object>(new {
-			configured,
-			unchanged,
-			failed,
-			restartRequired = configured > 0,
-			message = configured > 0 ? "FarmWatch settings were added. Restart the affected bots to load the plugin module." : "No bot configuration files needed changes."
+			configured, unchanged, restarted, results,
+			message = $"Configured {configured} bot(s); {unchanged} already configured; restarted {restarted} running bot(s)."
 		}));
+	}
+
+	private static async Task<(bool Success, bool Changed, bool Restarted, string Message)> ConfigureBotSafely(Bot bot) {
+		string configPath = Bot.GetFilePath(bot.BotName, Bot.EFileType.Config);
+		string temporaryPath = configPath + ".farmwatch.tmp";
+		string backupPath = configPath + ".farmwatch-backup-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
+		bool wasRunning = bot.KeepRunning;
+		bool stopped = false, replaced = false, changed = false;
+
+		try {
+			if (!System.IO.File.Exists(configPath)) return (false, false, false, "Bot configuration file was not found.");
+			JsonNode? parsed = JsonNode.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false));
+			if (parsed is not JsonObject config) return (false, false, false, "Bot configuration JSON root is not an object.");
+
+			if (config["EnableFreePackages"] is JsonValue enableValue && enableValue.TryGetValue<bool>(out bool enabled)) {
+				if (!enabled) { config["EnableFreePackages"] = true; changed = true; }
+			} else if (config["EnableFreePackages"] == null) {
+				config["EnableFreePackages"] = true; changed = true;
+			} else {
+				return (false, false, false, "EnableFreePackages exists but is not a Boolean. No changes were made.");
+			}
+
+			if (config["FarmWatchAutoClaimEnabled"] == null) {
+				config["FarmWatchAutoClaimEnabled"] = true; changed = true;
+			} else if (config["FarmWatchAutoClaimEnabled"] is not JsonValue autoClaimValue || !autoClaimValue.TryGetValue<bool>(out _)) {
+				return (false, false, false, "FarmWatchAutoClaimEnabled exists but is not a Boolean. No changes were made.");
+			}
+
+			if (!changed && PackageHandler.Handlers.ContainsKey(bot.BotName)) {
+				return (true, false, false, "Already configured; no restart needed.");
+			}
+
+			// Stop the live bot before touching its configuration file.
+			if (wasRunning) {
+				(bool stopSuccess, string stopMessage) = await bot.Actions.Stop().ConfigureAwait(false);
+				if (!stopSuccess) return (false, false, false, "Could not stop bot: " + stopMessage);
+				stopped = true;
+			}
+
+			System.IO.File.Copy(configPath, backupPath, false);
+			if (changed) {
+				await System.IO.File.WriteAllTextAsync(temporaryPath, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
+				_ = JsonNode.Parse(await System.IO.File.ReadAllTextAsync(temporaryPath).ConfigureAwait(false)) ?? throw new InvalidDataException("Updated bot config could not be validated.");
+				System.IO.File.Move(temporaryPath, configPath, true);
+				replaced = true;
+			}
+
+			Dictionary<string, JsonElement> properties = new(StringComparer.OrdinalIgnoreCase);
+			using (JsonDocument document = JsonDocument.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false))) {
+				foreach (JsonProperty property in document.RootElement.EnumerateObject()) properties[property.Name] = property.Value.Clone();
+			}
+			await FreePackages.InitializeBotModule(bot, properties).ConfigureAwait(false);
+			if (!PackageHandler.Handlers.ContainsKey(bot.BotName)) throw new InvalidOperationException("FarmWatch module did not initialise. Check EnableFreePackages and the bot config.");
+
+			bool restarted = false;
+			if (wasRunning) {
+				(bool startSuccess, string startMessage) = bot.Actions.Start();
+				if (!startSuccess) throw new InvalidOperationException("Configuration saved, but ASF could not restart the bot: " + startMessage);
+				restarted = true;
+			}
+			FarmWatchDiagnostics.Record("settings", changed ? "Bot config updated; FarmWatch module reinitialised and bot restarted." : "FarmWatch module reinitialised for existing bot config.", bot.BotName, "success");
+			return (true, changed, restarted, changed ? (restarted ? "Configured, reinitialised and restarted." : "Configured and reinitialised; bot was already stopped.") : "Already configured; FarmWatch module is active.");
+		} catch (Exception e) {
+			try {
+				if (replaced && System.IO.File.Exists(backupPath)) System.IO.File.Copy(backupPath, configPath, true);
+				if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath);
+				if (replaced && System.IO.File.Exists(configPath)) {
+					Dictionary<string, JsonElement> original = new(StringComparer.OrdinalIgnoreCase);
+					using JsonDocument document = JsonDocument.Parse(await System.IO.File.ReadAllTextAsync(configPath).ConfigureAwait(false));
+					foreach (JsonProperty property in document.RootElement.EnumerateObject()) original[property.Name] = property.Value.Clone();
+					await FreePackages.InitializeBotModule(bot, original).ConfigureAwait(false);
+				}
+			} catch (Exception rollbackError) {
+				ASF.ArchiLogger.LogGenericWarningException(rollbackError);
+			}
+			if (stopped) {
+				try { _ = bot.Actions.Start(); } catch (Exception restartError) { ASF.ArchiLogger.LogGenericWarningException(restartError); }
+			}
+			FarmWatchDiagnostics.Record("settings", "Bot configuration failed; rollback attempted.", bot.BotName, "error", e.ToString());
+			return (false, false, false, "Could not configure bot: " + e.Message);
+		}
 	}
 
 	[HttpPost("Settings")]
