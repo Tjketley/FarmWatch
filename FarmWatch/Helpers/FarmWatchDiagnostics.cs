@@ -43,7 +43,7 @@ internal static class FarmWatchDiagnostics {
 
 				foreach (string line in GetLastLines(File.ReadLines(LogPath), MaximumEvents)) {
 					try {
-						FarmWatchEvent? entry = JsonSerializer.Deserialize(line, FarmWatchJsonContext.Instance.FarmWatchEvent);
+						FarmWatchEvent? entry = FarmWatchJson.Deserialize<FarmWatchEvent>(line);
 						if (entry == null) continue;
 						Events.Enqueue(entry);
 						NextId = Math.Max(NextId, entry.Id);
@@ -81,7 +81,7 @@ internal static class FarmWatchDiagnostics {
 					File.Move(LogPath, backupPath);
 				}
 
-				byte[] bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(entry, FarmWatchJsonContext.Instance.FarmWatchEvent) + Environment.NewLine);
+				byte[] bytes = Encoding.UTF8.GetBytes(FarmWatchJson.Serialize(entry) + Environment.NewLine);
 				using FileStream stream = new(LogPath, FileMode.Append, FileAccess.Write, FileShare.Read, 4096, FileOptions.WriteThrough);
 				stream.Write(bytes);
 				stream.Flush(true);
