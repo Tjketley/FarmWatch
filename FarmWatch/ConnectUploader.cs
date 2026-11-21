@@ -229,7 +229,6 @@ internal static class ConnectUploader {
 				}
 
 				string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-				using JsonDocument document = JsonDocument.Parse(responseBody);
 				if (!IsAcknowledged(responseBody)) {
 					LastStatus = "Receiver did not acknowledge upload";
 					return;
@@ -245,6 +244,16 @@ internal static class ConnectUploader {
 			ASF.ArchiLogger.LogGenericWarningException(e);
 		} finally {
 			Gate.Release();
+		}
+	}
+
+
+	internal static bool IsAcknowledged(string responseBody) {
+		try {
+			using JsonDocument document = JsonDocument.Parse(responseBody);
+			return document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("ok", out JsonElement ok) && ok.ValueKind == JsonValueKind.True;
+		} catch (JsonException) {
+			return false;
 		}
 	}
 
