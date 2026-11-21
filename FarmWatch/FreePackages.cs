@@ -19,7 +19,7 @@ namespace FreePackages {
 		// ASF serves the bundled FarmWatch UI from this plugin folder and updates it with the plugin DLL.
 		public string PhysicalPath => "www";
 		public string WebPath => "/";
-		public string RepositoryName => "Tjketley/FarmWatch-2";
+		public string RepositoryName => "Tjketley/FarmWatch";
 		public Version Version => typeof(FreePackages).Assembly.GetName().Version ?? new Version("0");
 
 		// Releases contain both the plugin and standalone ASF UI ZIP. Select the
