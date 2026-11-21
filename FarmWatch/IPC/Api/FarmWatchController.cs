@@ -67,10 +67,17 @@ public sealed class FarmWatchController : ArchiController {
 	[ProducesResponseType((int) HttpStatusCode.BadRequest)]
 	public async Task<ActionResult<GenericResponse>> ConfigureConnect([FromBody] FarmWatchConnectRequest request) {
 		if (request == null) return BadRequest(new GenericResponse(false, "A Connect configuration is required."));
-		bool configured = await ConnectUploader.Configure(request.Enabled, request.Endpoint, request.Token).ConfigureAwait(false);
-		if (!configured) return BadRequest(new GenericResponse(false, "When enabling Connect, provide an HTTPS WordPress upload endpoint and a valid Bearer token."));
-		FarmWatchDiagnostics.Record("connect", request.Enabled ? "WatchFarm Connect uploader enabled." : "WatchFarm Connect uploader disabled.");
-		return Ok(new GenericResponse<object>(new { status = ConnectUploader.GetStatus(), message = request.Enabled ? "Connect configured. The first statistics snapshot has been queued for upload." : "Connect uploader disabled. Pending uploads are retained locally." }));
+		try {
+			bool configured = await ConnectUploader.Configure(request.Enabled, request.Endpoint, request.Token).ConfigureAwait(false);
+			if (!configured) return BadRequest(new GenericResponse(false, "Invalid Connect configuration. Enabling requires an HTTPS endpoint without query/fragment/user-info and a 32-128 character Bearer token using letters, numbers, underscore or hyphen."));
+			FarmWatchDiagnostics.Record("connect", request.Enabled ? "WatchFarm Connect uploader enabled." : "WatchFarm Connect uploader disabled.");
+			return Ok(new GenericResponse<object>(new { status = ConnectUploader.GetStatus(), message = request.Enabled ? "Connect configured. The first statistics snapshot has been queued for upload." : "Connect uploader disabled. Pending uploads are retained locally." }));
+		} catch (Exception e) {
+			string errorId = Guid.NewGuid().ToString("N");
+			ASF.ArchiLogger.LogGenericWarningException(e);
+			FarmWatchDiagnostics.Record("connect", "Connect configuration failed. Reference: " + errorId, level: "error", details: e.ToString());
+			return new ObjectResult(new GenericResponse(false, "Connect configuration failed. Reference: " + errorId + ". Check FarmWatch Events/ASF logs for the exception.")) { StatusCode = (int) HttpStatusCode.InternalServerError };
+		}
 	}
 
 	[HttpGet("Diagnostics")]
